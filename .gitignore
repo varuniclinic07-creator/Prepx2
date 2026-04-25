@@ -1,0 +1,46 @@
+# Dependencies
+node_modules/
+
+# Build output
+.next/
+test-results/
+tsconfig.tsbuildinfo
+
+# Secret environments
+.env.local
+.env.*.local
+.a0proj/secrets.env
+.a0proj/variables.env
+
+# Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Python
+__pycache__/
+venv/
+.env/
+.pytest_cache/
+
+# Logs
+*.log
+npm-debug.log*
+
+# Misc
+dist/
+
+# Keep .env.example as a template
+!.env.example
+
+# Agent memory and secrets
+.a0proj/memory/
+.a0proj/secrets.env
+.a0proj/variables.env
+.env.example
+.a0proj/memory/

@@ -1,0 +1,59 @@
+import { createClient } from '@/lib/supabase-server';
+import { DailyPlan } from '../components/DailyPlan';
+import { redirect } from 'next/navigation';
+
+export default async function Dashboard() {
+  const supabase = createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+
+  if (!user) redirect('/login');
+
+  const { data: profile } = await supabase.from('users').select('baseline_score,streak_count,role').eq('id', user.id).single();
+  if (profile && profile.baseline_score === null) redirect('/onboarding');
+
+  const today = new Date().toISOString().split('T')[0];
+  let { data: plan } = await supabase.from('daily_plans').select('*').eq('user_id', user.id).eq('plan_date', today).single();
+
+  // If no plan or still using all-topic-001 static fallback, regenerate
+  const isStaticFallback = plan && plan.tasks && plan.tasks.length > 0 && plan.tasks.every((t: any) => t.topic_id === 'topic-001');
+  if (!plan || isStaticFallback) {
+    const res = await fetch(`${process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'http://localhost:3000'}/api/daily-plan/generate`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      cache: 'no-store',
+    });
+    if (res.ok) {
+      const { plan: generated } = await res.json();
+      plan = generated;
+    }
+  }
+
+  return (
+    <div className="space-y-6">
+      <div className="bg-gradient-to-r from-emerald-500/10 to-cyan-500/10 border border-emerald-500/20 rounded-xl p-6">
+        <h1 className="text-2xl font-bold text-slate-100 mb-2">Good Morning, Aspirant</h1>
+        <p className="text-slate-400">Your daily mission is ready. Let&apos;s close the learning loop today.</p>
+      </div>
+      
+      <DailyPlan userId={user.id} initialPlan={plan || null} />
+      
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <StatCard label="Streak" value={profile?.streak_count?.toString() || '0'} unit="days" />
+        <StatCard label="Baseline" value={profile?.baseline_score?.toString() || '-'} unit="/ 5" />
+        <StatCard label="Quiz Avg" value="0%" unit="" />
+        <StatCard label="Weak Areas" value="0" unit="injected" />
+      </div>
+    </div>
+  );
+}
+
+function StatCard({ label, value, unit }: { label: string; value: string; unit: string }) {
+  return (
+    <div className="bg-slate-900 border border-slate-800 rounded-lg p-4 text-center">
+      <div className="text-2xl font-bold text-emerald-400">{value}</div>
+      <div className="text-xs text-slate-500 mt-1">{unit}</div>
+      <div className="text-sm text-slate-300 mt-1">{label}</div>
+    </div>
+  );
+}
+
