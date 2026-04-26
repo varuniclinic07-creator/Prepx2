@@ -1,0 +1,809 @@
+# =============================================================================
+# PrepX — COMPLETE VPS Docker Compose (Production Stack)
+# =============================================================================
+# Services: Next.js App, Supabase Self-Hosted, Redis, MinIO, Crawl4AI,
+#           Remotion, Manim, FFmpeg, Plausible, Mautic, n8n, Grafana,
+#           Prometheus, Jaeger, Uptime Kuma, Nginx CDN, Traefik
+# =============================================================================
+# Usage:
+#   docker compose -f docker-compose.vps.yml up -d
+#   docker compose -f docker-compose.vps.yml down
+# =============================================================================
+
+version: "3.8"
+
+x-supabase-environment: &supabase-environment
+  POSTGRES_HOST: db
+  POSTGRES_DB: ${POSTGRES_DB:-postgres}
+  POSTGRES_PORT: ${POSTGRES_PORT:-5432}
+  POSTGRES_USER: ${POSTGRES_USER:-postgres}
+  POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+  JWT_SECRET: ${JWT_SECRET}
+  ANON_KEY: ${ANON_KEY}
+  SERVICE_ROLE_KEY: ${SERVICE_ROLE_KEY}
+  SUPABASE_SERVICE_ROLE_SECRET: ${SERVICE_ROLE_KEY}
+  SUPABASE_SERVICE_ROLE_KEY: ${SERVICE_ROLE_KEY}
+
+services:
+  # -------------------------------------------------------------------------
+  # 1. Traefik Reverse Proxy + TLS
+  # -------------------------------------------------------------------------
+  traefik:
+    container_name: prepx-traefik
+    image: traefik:v3.0
+    restart: unless-stopped
+    command:
+      - --api.insecure=true
+      - --providers.docker=true
+      - --providers.docker.exposedbydefault=false
+      - --entrypoints.web.address=:80
+      - --entrypoints.websecure.address=:443
+      - --certificatesresolvers.letsencrypt.acme.tlschallenge=true
+      - --certificatesresolvers.letsencrypt.acme.email=${ADMIN_EMAIL}
+      - --certificatesresolvers.letsencrypt.acme.storage=/letsencrypt/acme.json
+      - --tracing.jaeger.samplingServerURL=http://jaeger:5778/sampling
+      - --tracing.jaeger.localAgentHostPort=jaeger:6831
+    ports:
+      - "80:80"
+      - "443:443"
+      - "8080:8080"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - letsencrypt:/letsencrypt
+    labels:
+      - "traefik.enable=true"
+    depends_on:
+      - jaeger
+    networks:
+      - prepx-public
+      - prepx-internal
+
+  # -------------------------------------------------------------------------
+  # 2. Next.js Core Application
+  # -------------------------------------------------------------------------
+  prepx:
+    container_name: prepx-app
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_SUPABASE_URL: ${NEXT_PUBLIC_SUPABASE_URL}
+        NEXT_PUBLIC_SUPABASE_ANON_KEY: ${NEXT_PUBLIC_SUPABASE_ANON_KEY}
+        NEXT_PUBLIC_RAZORPAY_KEY_ID: ${NEXT_PUBLIC_RAZORPAY_KEY_ID}
+    ports:
+      - "3000:3000"
+    env_file:
+      - .env.vps
+    environment:
+      DATABASE_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
+      REDIS_URL: redis://redis:6379
+      S3_ENDPOINT: http://minio:9000
+      S3_BUCKET: prepx
+      S3_ACCESS_KEY: ${MINIO_ROOT_USER}
+      S3_SECRET_KEY: ${MINIO_ROOT_PASSWORD}
+      RATE_LIMIT_REDIS: redis://redis:6379
+      JAEGER_ENDPOINT: http://jaeger:14268/api/traces
+      SENTRY_DSN: ${SENTRY_DSN}
+      RAZORPAY_KEY_SECRET: ${RAZORPAY_KEY_SECRET}
+      RAZORPAY_WEBHOOK_SECRET: ${RAZORPAY_WEBHOOK_SECRET}
+      TWILIO_ACCOUNT_SID: ${TWILIO_ACCOUNT_SID}
+      TWILIO_AUTH_TOKEN: ${TWILIO_AUTH_TOKEN}
+      SENDGRID_API_KEY: ${SENDGRID_API_KEY}
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+      supabase-auth:
+        condition: service_started
+      supabase-rest:
+        condition: service_started
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:3000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.services.prepx.loadbalancer.server.port=3000"
+      - "traefik.http.routers.prepx.rule=Host(`${APP_DOMAIN}`)"
+      - "traefik.http.routers.prepx.entrypoints=websecure"
+      - "traefik.http.routers.prepx.tls.certresolver=letsencrypt"
+    networks:
+      - prepx-public
+      - prepx-internal
+
+  # -------------------------------------------------------------------------
+  # 3. PostgreSQL (Supabase compatible with pgvector)
+  # -------------------------------------------------------------------------
+  db:
+    container_name: prepx-db
+    image: supabase/postgres:15.1.1.78
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-postgres}
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_PORT: ${POSTGRES_PORT:-5432}
+      POSTGRES_INITDB_ARGS: "--auth-host=scram-sha-256"
+      TZ: ${TZ:-UTC}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./supabase/migrations:/docker-entrypoint-initdb.d:ro
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    restart: unless-stopped
+    networks:
+      - prepx-internal
+
+  # -------------------------------------------------------------------------
+  # 4. Supabase — Auth (GoTrue)
+  # -------------------------------------------------------------------------
+  supabase-auth:
+    container_name: prepx-auth
+    image: supabase/gotrue:v2.158.1
+    environment:
+      <<: [*supabase-environment]
+      DB_HOST: db
+      DB_DRIVER: postgres
+      API_EXTERNAL_URL: ${NEXT_PUBLIC_SUPABASE_URL}
+      GOTRUE_SITE_URL: ${NEXT_PUBLIC_APP_URL}
+      GOTRUE_JWT_SECRET: ${JWT_SECRET}
+      GOTRUE_JWT_EXP: 3600
+      GOTRUE_JWT_DEFAULT_GROUP_NAME: authenticated
+      GOTRUE_SMTP_ADMIN_EMAIL: ${SMTP_FROM}
+      GOTRUE_SMTP_HOST: ${SMTP_HOST}
+      GOTRUE_SMTP_PORT: ${SMTP_PORT}
+      GOTRUE_SMTP_USER: ${SMTP_USER}
+      GOTRUE_SMTP_PASS: ${SMTP_PASS}
+      GOTRUE_SMTP_SENDER_NAME: PrepX
+      GOTRUE_EXTERNAL_PHONE_ENABLED: "true"
+      GOTRUE_SMS_AUTOCONFIRM: "false"
+      GOTRUE_SMS_PROVIDER: "twilio"
+      GOTRUE_SMS_TWILIO_ACCOUNT_SID: ${TWILIO_ACCOUNT_SID}
+      GOTRUE_SMS_TWILIO_AUTH_TOKEN: ${TWILIO_AUTH_TOKEN}
+      GOTRUE_SMS_TWILIO_MESSAGE_SERVICE_SID: ${TWILIO_MESSAGING_SID}
+      GOTRUE_MAILER_AUTOCONFIRM: "false"
+      GOTRUE_MAILER_URLPATHS_CONFIRMATION: /auth/confirm
+      GOTRUE_MAILER_URLPATHS_INVITE: /auth/invite
+      GOTRUE_MAILER_URLPATHS_RECOVERY: /auth/recover
+      GOTRUE_MAILER_URLPATHS_EMAIL_CHANGE: /auth/email
+      GOTRUE_ENABLE_SIGNUP: "true"
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - prepx-internal
+
+  # -------------------------------------------------------------------------
+  # 5. Supabase — PostgREST
+  # -------------------------------------------------------------------------
+  supabase-rest:
+    container_name: prepx-rest
+    image: postgrest/postgrest:v12.2.3
+    environment:
+      PGRST_DB_URI: postgres://authenticator:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
+      PGRST_DB_SCHEMAS: public,storage,graphql_public
+      PGRST_DB_ANON_ROLE: anon
+      PGRST_JWT_SECRET: ${JWT_SECRET}
+      PGRST_OPENAPI_SERVER_PROXY_URI: ${NEXT_PUBLIC_SUPABASE_URL}
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - prepx-internal
+
+  # -------------------------------------------------------------------------
+  # 6. Supabase — Realtime
+  # -------------------------------------------------------------------------
+  supabase-realtime:
+    container_name: prepx-realtime
+    image: supabase/realtime:v2.28.32
+    environment:
+      PORT: 4000
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_USER: supabase_admin
+      DB_PASSWORD: ${POSTGRES_PASSWORD}
+      DB_NAME: ${POSTGRES_DB}
+      DB_AFTER_CONNECT_QUERY: 'SET search_path TO _realtime'
+      DB_ENC_KEY: ${DB_ENC_KEY}
+      API_JWT_SECRET: ${JWT_SECRET}
+      SECRET_KEY_BASE: ${SECRET_KEY_BASE}
+      FLY_ALLOC_ID: fly123
+      FLY_APP_NAME: realtime
+      FLY_DEV: true
+      FLY_REGION: sea
+      FLY_PRIVATE_IP: 127.0.0.1
+      DNS_NODES: "''"
+      ERL_AFLAGS: -proto_dist inet_tcp
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - prepx-internal
+
+  # -------------------------------------------------------------------------
+  # 7. Supabase — Storage
+  # -------------------------------------------------------------------------
+  supabase-storage:
+    container_name: prepx-storage
+    image: supabase/storage-api:v1.5.1
+    environment:
+      ANON_KEY: ${ANON_KEY}
+      SERVICE_ROLE_KEY: ${SERVICE_ROLE_KEY}
+      POSTGREST_URL: http://supabase-rest:3000
+      PGRST_JWT_SECRET: ${JWT_SECRET}
+      DATABASE_URL: postgres://supabase_admin:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
+      FILE_SIZE_LIMIT: 524288000
+      STORAGE_BACKEND: s3
+      REGION: us-east-1
+      GLOBAL_S3_BUCKET: prepx
+      GLOBAL_S3_ENDPOINT: http://minio:9000
+      GLOBAL_S3_PROTOCOL: http
+      AWS_ACCESS_KEY_ID: ${MINIO_ROOT_USER}
+      AWS_SECRET_ACCESS_KEY: ${MINIO_ROOT_PASSWORD}
+      TENANT_ID: stub
+      ENABLE_IMAGE_TRANSFORMATION: "true"
+      IMGPROXY_URL: http://imgproxy:5001
+    depends_on:
+      db:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - prepx-internal
+
+  # -------------------------------------------------------------------------
+  # 8. Supabase — Edge Functions
+  # -------------------------------------------------------------------------
+  supabase-functions:
+    container_name: prepx-functions
+    image: supabase/edge-runtime:v1.54.1
+    command:
+      - start
+      - --main-service
+      - /home/deno/functions/main
+    volumes:
+      - ./supabase/functions:/home/deno/functions:Z
+    environment:
+      SUPABASE_ANON_KEY: ${ANON_KEY}
+      SUPABASE_SERVICE_ROLE_KEY: ${SERVICE_ROLE_KEY}
+      SUPABASE_DB_URL: postgres://supabase_admin:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
+      JWT_SECRET: ${JWT_SECRET}
+      REGION: local
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - prepx-internal
+
+  # -------------------------------------------------------------------------
+  # 9. Supabase — Kong (API Gateway)
+  # -------------------------------------------------------------------------
+  supabase-kong:
+    container_name: prepx-kong
+    image: kong:2.8.1
+    entrypoint: bash -c 'eval "echo \"$$KONG_DECLARATIVE_CONFIG\"" > /tmp/kong.yml && kong start -c /tmp/kong.yml'
+    environment:
+      KONG_DATABASE: "off"
+      KONG_DECLARATIVE_CONFIG: /home/kong/kong.yml
+      KONG_DNS_ORDER: LAST,A,CNAME
+      KONG_PLUGINS: request-transformer,cors,key-auth,acl,basic-auth
+      SUPABASE_ANON_KEY: ${ANON_KEY}
+      SUPABASE_SERVICE_KEY: ${SERVICE_ROLE_KEY}
+      DASHBOARD_USERNAME: ${KONG_DASHBOARD_USER}
+      DASHBOARD_PASSWORD: ${KONG_DASHBOARD_PASS}
+    volumes:
+      - ./vps/init/kong.yml:/home/kong/kong.yml:ro
+    ports:
+      - "8000:8000"
+    depends_on:
+      - supabase-auth
+      - supabase-rest
+      - supabase-realtime
+      - supabase-storage
+      - supabase-functions
+    restart: unless-stopped
+    networks:
+      - prepx-public
+      - prepx-internal
+
+  # -------------------------------------------------------------------------
+  # 10. Redis (Cache + Rate Limiting + Queues)
+  # -------------------------------------------------------------------------
+  redis:
+    container_name: prepx-redis
+    image: redis:7-alpine
+    command: redis-server --appendonly yes --maxmemory 512mb --maxmemory-policy allkeys-lru
+    volumes:
+      - redis_data:/data
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    restart: unless-stopped
+    networks:
+      - prepx-internal
+
+  # -------------------------------------------------------------------------
+  # 11. MinIO (S3-compatible Storage / CDN)
+  # -------------------------------------------------------------------------
+  minio:
+    container_name: prepx-minio
+    image: minio/minio:RELEASE.2024-05-28T17-19-04Z
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - minio_data:/data
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.services.minio.loadbalancer.server.port=9001"
+      - "traefik.http.routers.minio.rule=Host(`cdn.${APP_DOMAIN}`)"
+      - "traefik.http.routers.minio.entrypoints=websecure"
+      - "traefik.http.routers.minio.tls.certresolver=letsencrypt"
+    networks:
+      - prepx-public
+      - prepx-internal
+
+  # -------------------------------------------------------------------------
+  # 12. Crawl4AI (Web Crawling + Data Extraction)
+  # -------------------------------------------------------------------------
+  crawl4ai:
+    container_name: prepx-crawl4ai
+    image: unclecode/crawl4ai:all-amd64
+    environment:
+      CRAWL4AI_API_TOKEN: ${CRAWL4AI_API_TOKEN}
+      REDIS_URL: redis://redis:6379
+      MAX_CONCURRENT_CRAWLS: 5
+      DEFAULT_TIMEOUT: 30000
+    ports:
+      - "11235:11235"
+    depends_on:
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - prepx-internal
+
+  # -------------------------------------------------------------------------
+  # 13. Remotion Video Rendering Worker
+  # -------------------------------------------------------------------------
+  remotion-worker:
+    container_name: prepx-remotion
+    image: ghcr.io/remotion-dev/bundler:4.0
+    environment:
+      REMOTION_AWS_ACCESS_KEY_ID: ${MINIO_ROOT_USER}
+      REMOTION_AWS_SECRET_ACCESS_KEY: ${MINIO_ROOT_PASSWORD}
+      REMOTION_S3_ENDPOINT: http://minio:9000
+      REMOTION_S3_BUCKET: remotion
+      REMOTION_MODE: render
+      REDIS_URL: redis://redis:6379
+    volumes:
+      - remotion_data:/tmp/remotion
+      - ./app/astra:/app/src:ro
+    depends_on:
+      - redis
+      - minio
+    restart: unless-stopped
+    networks:
+      - prepx-internal
+
+  # -------------------------------------------------------------------------
+  # 14. Manim Math Animation Worker
+  # -------------------------------------------------------------------------
+  manim-worker:
+    container_name: prepx-manim
+    image: manimcommunity/manim:v0.18.0
+    volumes:
+      - manim_data:/media
+      - ./scripts/manim:/manim/scripts:ro
+    environment:
+      OUTPUT_DIR: /media/output
+    entrypoint: ["sh", "-c", "while true; do python /manim/scripts/poll_queue.py; sleep 5; done"]
+    depends_on:
+      - redis
+      - minio
+    restart: unless-stopped
+    networks:
+      - prepx-internal
+
+  # -------------------------------------------------------------------------
+  # 15. FFmpeg Video Processing Worker
+  # -------------------------------------------------------------------------
+  ffmpeg-worker:
+    container_name: prepx-ffmpeg
+    image: linuxserver/ffmpeg:latest
+    volumes:
+      - ffmpeg_data:/data
+    environment:
+      REDIS_URL: redis://redis:6379
+      S3_ENDPOINT: http://minio:9000
+      S3_BUCKET: prepx-media
+      AWS_ACCESS_KEY_ID: ${MINIO_ROOT_USER}
+      AWS_SECRET_ACCESS_KEY: ${MINIO_ROOT_PASSWORD}
+    entrypoint: ["sh", "-c", "while true; do python3 /scripts/poll_ffmpeg_queue.py; sleep 2; done"]
+    depends_on:
+      - redis
+      - minio
+    restart: unless-stopped
+    networks:
+      - prepx-internal
+
+  # -------------------------------------------------------------------------
+  # 16. Lecture Processing Queue Worker
+  # -------------------------------------------------------------------------
+  lecture-queue-worker:
+    container_name: prepx-lecture-worker
+    image: python:3.12-slim
+    working_dir: /app
+    volumes:
+      - ./scripts/lecture-queue:/app
+    environment:
+      REDIS_URL: redis://redis:6379
+      POSTGRES_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
+      RABBITMQ_URL: amqp://guest:guest@rabbitmq:5672/
+    command: >
+      sh -c "pip install redis psycopg[binary] sqlalchemy openai python-dotenv celery &&
+             celery -A lecture_worker worker --loglevel=info --concurrency=2"
+    depends_on:
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - prepx-internal
+
+  # -------------------------------------------------------------------------
+  # 17. Plausible Analytics
+  # -------------------------------------------------------------------------
+  plausible-events-db:
+    container_name: prepx-plausible-db
+    image: clickhouse/clickhouse-server:24.3
+    volumes:
+      - plausible_events_db:/var/lib/clickhouse
+    ulimits:
+      nofile:
+        soft: 262144
+        hard: 262144
+    restart: unless-stopped
+    networks:
+      - prepx-internal
+
+  plausible:
+    container_name: prepx-plausible
+    image: plausible/analytics:v2.1
+    command: sh -c "sleep 10 && /entrypoint.sh db createdb && /entrypoint.sh db migrate && /entrypoint.sh run"
+    environment:
+      BASE_URL: https://analytics.${APP_DOMAIN}
+      SECRET_KEY_BASE: ${PLAUSIBLE_SECRET}
+      DATABASE_URL: postgres://plausible:${PLAUSIBLE_DB_PASSWORD}@db:5432/plausible?sslmode=disable
+      CLICKHOUSE_DATABASE_URL: http://plausible-events-db:8123/plausible_events_db
+    depends_on:
+      - db
+      - plausible-events-db
+    restart: unless-stopped
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.services.plausible.loadbalancer.server.port=8000"
+      - "traefik.http.routers.plausible.rule=Host(`analytics.${APP_DOMAIN}`)"
+      - "traefik.http.routers.plausible.entrypoints=websecure"
+      - "traefik.http.routers.plausible.tls.certresolver=letsencrypt"
+    networks:
+      - prepx-public
+      - prepx-internal
+
+  # -------------------------------------------------------------------------
+  # 18. Mautic Marketing Automation (+ MariaDB)
+  # -------------------------------------------------------------------------
+  mautic-db:
+    container_name: prepx-mautic-db
+    image: mariadb:10.11
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MAUTIC_DB_ROOT_PASSWORD}
+      MYSQL_DATABASE: mautic
+      MYSQL_USER: mautic
+      MYSQL_PASSWORD: ${MAUTIC_DB_PASSWORD}
+    volumes:
+      - mautic_db:/var/lib/mysql
+    command: --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
+    restart: unless-stopped
+    networks:
+      - prepx-internal
+
+  mautic:
+    container_name: prepx-mautic
+    image: mautic/mautic:v5
+    environment:
+      MAUTIC_DB_HOST: mautic-db
+      MAUTIC_DB_NAME: mautic
+      MAUTIC_DB_USER: mautic
+      MAUTIC_DB_PASSWORD: ${MAUTIC_DB_PASSWORD}
+      MAUTIC_URL: https://mautic.${APP_DOMAIN}
+      MAUTIC_ADMIN_USERNAME: ${MAUTIC_ADMIN_USER}
+      MAUTIC_ADMIN_PASSWORD: ${MAUTIC_ADMIN_PASS}
+    volumes:
+      - mautic_data:/var/www/html
+    depends_on:
+      - mautic-db
+    restart: unless-stopped
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.services.mautic.loadbalancer.server.port=80"
+      - "traefik.http.routers.mautic.rule=Host(`mautic.${APP_DOMAIN}`)"
+      - "traefik.http.routers.mautic.entrypoints=websecure"
+      - "traefik.http.routers.mautic.tls.certresolver=letsencrypt"
+    networks:
+      - prepx-public
+      - prepx-internal
+
+  # -------------------------------------------------------------------------
+  # 19. n8n Workflow Automation
+  # -------------------------------------------------------------------------
+  n8n:
+    container_name: prepx-n8n
+    image: n8nio/n8n:1.48
+    environment:
+      N8N_BASIC_AUTH_ACTIVE: "true"
+      N8N_BASIC_AUTH_USER: ${N8N_USER}
+      N8N_BASIC_AUTH_PASSWORD: ${N8N_PASSWORD}
+      N8N_HOST: n8n.${APP_DOMAIN}
+      N8N_PORT: 5678
+      N8N_PROTOCOL: https
+      NODE_ENV: production
+      WEBHOOK_URL: https://n8n.${APP_DOMAIN}/
+      DB_TYPE: postgresdb
+      DB_POSTGRESDB_HOST: db
+      DB_POSTGRESDB_PORT: 5432
+      DB_POSTGRESDB_DATABASE: n8n
+      DB_POSTGRESDB_USER: n8n
+      DB_POSTGRESDB_PASSWORD: ${N8N_DB_PASSWORD}
+      REDIS_URL: redis://redis:6379
+    volumes:
+      - n8n_data:/home/node/.n8n
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.services.n8n.loadbalancer.server.port=5678"
+      - "traefik.http.routers.n8n.rule=Host(`n8n.${APP_DOMAIN}`)"
+      - "traefik.http.routers.n8n.entrypoints=websecure"
+      - "traefik.http.routers.n8n.tls.certresolver=letsencrypt"
+    networks:
+      - prepx-public
+      - prepx-internal
+
+  # -------------------------------------------------------------------------
+  # 20. Prometheus Monitoring
+  # -------------------------------------------------------------------------
+  prometheus:
+    container_name: prepx-prometheus
+    image: prom/prometheus:v2.53.0
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.path=/prometheus
+      - --web.console.libraries=/etc/prometheus/console_libraries
+      - --web.console.templates=/etc/prometheus/consoles
+      - --web.enable-lifecycle
+    volumes:
+      - ./vps/monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    ports:
+      - "9090:9090"
+    restart: unless-stopped
+    networks:
+      - prepx-internal
+
+  # -------------------------------------------------------------------------
+  # 21. Grafana Dashboards
+  # -------------------------------------------------------------------------
+  grafana:
+    container_name: prepx-grafana
+    image: grafana/grafana:11.0.0
+    environment:
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD}
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      GF_SERVER_ROOT_URL: https://grafana.${APP_DOMAIN}
+      GF_INSTALL_PLUGINS: grafana-clock-panel,grafana-piechart-panel
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./vps/monitoring/grafana:/etc/grafana/provisioning:ro
+    depends_on:
+      - prometheus
+    restart: unless-stopped
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.services.grafana.loadbalancer.server.port=3000"
+      - "traefik.http.routers.grafana.rule=Host(`grafana.${APP_DOMAIN}`)"
+      - "traefik.http.routers.grafana.entrypoints=websecure"
+      - "traefik.http.routers.grafana.tls.certresolver=letsencrypt"
+    networks:
+      - prepx-public
+      - prepx-internal
+
+  # -------------------------------------------------------------------------
+  # 22. Jaeger Distributed Tracing
+  # -------------------------------------------------------------------------
+  jaeger:
+    container_name: prepx-jaeger
+    image: jaegertracing/all-in-one:1.57
+    ports:
+      - "16686:16686"
+      - "14268:14268"
+      - "6831:6831/udp"
+      - "6832:6832/udp"
+    environment:
+      COLLECTOR_OTLP_ENABLED: "true"
+    volumes:
+      - jaeger_data:/badger
+    restart: unless-stopped
+    networks:
+      - prepx-internal
+
+  # -------------------------------------------------------------------------
+  # 23. Uptime Kuma
+  # -------------------------------------------------------------------------
+  uptime-kuma:
+    container_name: prepx-uptime
+    image: louislam/uptime-kuma:1-debian
+    volumes:
+      - uptime_data:/app/data
+    ports:
+      - "3001:3001"
+    restart: unless-stopped
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.services.uptime-kuma.loadbalancer.server.port=3001"
+      - "traefik.http.routers.uptime-kuma.rule=Host(`status.${APP_DOMAIN}`)"
+      - "traefik.http.routers.uptime-kuma.entrypoints=websecure"
+      - "traefik.http.routers.uptime-kuma.tls.certresolver=letsencrypt"
+    networks:
+      - prepx-public
+      - prepx-internal
+
+  # -------------------------------------------------------------------------
+  # 24. ComfyUI + LTX2.3 AI Video Generation
+  # -------------------------------------------------------------------------
+  comfyui:
+    container_name: prepx-comfyui
+    image: comfyanonymous/comfyui:latest
+    ports:
+      - "8188:8188"
+    volumes:
+      - comfyui_models:/app/models
+      - comfyui_output:/app/output
+      - ./scripts/comfyui-workflows:/app/user/default/workflows:ro
+    environment:
+      COMFYUI_ENABLE_CORS: "True"
+    restart: unless-stopped
+    networks:
+      - prepx-internal
+
+  # -------------------------------------------------------------------------
+  # 25. Ollama (Local LLM hosting)
+  # -------------------------------------------------------------------------
+  ollama:
+    container_name: prepx-ollama
+    image: ollama/ollama:0.1.47
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+    restart: unless-stopped
+    # Remove deploy section if no GPU
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices:
+    #         - driver: nvidia
+    #           count: 1
+    #           capabilities: [gpu]
+    networks:
+      - prepx-internal
+
+  # -------------------------------------------------------------------------
+  # 26. imgproxy (Image transformation)
+  # -------------------------------------------------------------------------
+  imgproxy:
+    container_name: prepx-imgproxy
+    image: darthsim/imgproxy:v3.24
+    environment:
+      IMGPROXY_KEY: ${IMGPROXY_KEY}
+      IMGPROXY_SALT: ${IMGPROXY_SALT}
+      IMGPROXY_ENABLE_AVIF_DETECTION: "true"
+      IMGPROXY_ENABLE_WEBP_DETECTION: "true"
+      IMGPROXY_USE_S3: "true"
+      IMGPROXY_S3_ENDPOINT: http://minio:9000
+      AWS_ACCESS_KEY_ID: ${MINIO_ROOT_USER}
+      AWS_SECRET_ACCESS_KEY: ${MINIO_ROOT_PASSWORD}
+    restart: unless-stopped
+    ports:
+      - "5001:8080"
+    networks:
+      - prepx-internal
+
+# =============================================================================
+# Networks
+# =============================================================================
+networks:
+  prepx-public:
+    driver: bridge
+  prepx-internal:
+    driver: bridge
+    internal: false
+
+# =============================================================================
+# Named Volumes
+# =============================================================================
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+  minio_data:
+    driver: local
+  letsencrypt:
+    driver: local
+  remotion_data:
+    driver: local
+  manim_data:
+    driver: local
+  ffmpeg_data:
+    driver: local
+  plausible_events_db:
+    driver: local
+  plausible_data:
+    driver: local
+  mautic_db:
+    driver: local
+  mautic_data:
+    driver: local
+  n8n_data:
+    driver: local
+  prometheus_data:
+    driver: local
+  grafana_data:
+    driver: local
+  jaeger_data:
+    driver: local
+  uptime_data:
+    driver: local
+  comfyui_models:
+    driver: local
+  comfyui_output:
+    driver: local
+  ollama_data:
+    driver: local
