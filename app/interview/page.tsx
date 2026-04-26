@@ -1,9 +1,11 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 
 export default function InterviewPage() {
-  const [question] = useState('What are the core principles of ethical governance in public administration?');
+  const [question, setQuestion] = useState('Loading question…');
+  const [qid, setQid] = useState('');
+  useEffect(() => { fetch('/api/interview/questions').then(r => r.json()).then(d => { setQuestion(d.question || ''); setQid(d.id || ''); }); }, []);
   const [answer, setAnswer] = useState('');
   const [result, setResult] = useState<{ fluency: number; content: number; presence: number; feedback: string } | null>(null);
   const [loading, setLoading] = useState(false);

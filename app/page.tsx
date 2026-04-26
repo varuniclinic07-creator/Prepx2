@@ -2,8 +2,26 @@ import { createClient } from '@/lib/supabase-server';
 import { DailyPlan } from '../components/DailyPlan';
 import { redirect } from 'next/navigation';
 
+async function DashboardStats({ userId, profile }: { userId: string; profile: any }) {
+  const supabase = await createClient();
+  const [{ count: totalTopics }, { count: quizAttempts }, { count: weakAreaCount }] = await Promise.all([
+    supabase.from('topics').select('*', { count: 'exact', head: true }),
+    supabase.from('quiz_attempts').select('*', { count: 'exact', head: true }).eq('user_id', userId),
+    supabase.from('user_weak_areas').select('*', { count: 'exact', head: true }).eq('user_id', userId),
+  ]);
+  const quizAvg = quizAttempts && totalTopics ? Math.round((quizAttempts / totalTopics) * 100) + '%' : '0%';
+  return (
+    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <StatCard label="Streak" value={profile?.streak_count?.toString() || '0'} unit="days" />
+      <StatCard label="Baseline" value={profile?.baseline_score?.toString() || '-'} unit="/ 5" />
+      <StatCard label="Quiz Avg" value={quizAvg} unit="" />
+      <StatCard label="Weak Areas" value={String(weakAreaCount ?? 0)} unit="injected" />
+    </div>
+  );
+}
+
 export default async function Dashboard() {
-  const supabase = createClient();
+  const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
 
   if (!user) redirect('/login');
@@ -37,12 +55,7 @@ export default async function Dashboard() {
       
       <DailyPlan userId={user.id} initialPlan={plan || null} />
       
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <StatCard label="Streak" value={profile?.streak_count?.toString() || '0'} unit="days" />
-        <StatCard label="Baseline" value={profile?.baseline_score?.toString() || '-'} unit="/ 5" />
-        <StatCard label="Quiz Avg" value="0%" unit="" />
-        <StatCard label="Weak Areas" value="0" unit="injected" />
-      </div>
+      <DashboardStats userId={user.id} profile={profile} />
     </div>
   );
 }

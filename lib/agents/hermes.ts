@@ -15,14 +15,12 @@ export interface HermesContext {
   current_interview_id?: string;
   daily_plan_id?: string;
   last_activity_at: string;
-  readiness_score: number;
 }
 
 export async function createSession(userId: string): Promise<HermesContext> {
   const ctx: HermesContext = {
     user_id: userId,
     session_state: 'idle',
-    readiness_score: 0,
     last_activity_at: new Date().toISOString()
   };
   await supabase.from('user_sessions').upsert(ctx, { onConflict: 'user_id' });
@@ -43,7 +41,6 @@ export async function transition(
   if (payload?.essayId) update.current_essay_id = payload.essayId;
   if (payload?.interviewId) update.current_interview_id = payload.interviewId;
   if (payload?.dailyPlanId) update.daily_plan_id = payload.dailyPlanId;
-  if (payload?.readinessScore !== undefined) update.readiness_score = payload.readinessScore;
 
   await supabase.from('user_sessions').update(update).eq('user_id', userId);
   console.log(`[Hermes] -> ${newState}`);

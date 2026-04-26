@@ -15,9 +15,15 @@ export async function POST(req: Request) {
   }
 
   const body = await req.text();
-  const expected = crypto.createHmac('sha256', secret).update(body, 'utf8').digest('hex');
-  if (!crypto.timingSafeEqual(Buffer.from(expected) as any, Buffer.from(sig) as any)) {
-    return NextResponse.json({ received: false, error: 'Invalid signature' }, { status: 400 });
+  try {
+    const expected = crypto.createHmac('sha256', secret).update(body, 'utf8').digest('hex');
+    const expectedBuf = Buffer.from(expected, 'utf8') as unknown as Uint8Array;
+    const sigBuf = Buffer.from(sig, 'utf8') as unknown as Uint8Array;
+    if (Buffer.byteLength(expectedBuf) !== Buffer.byteLength(sigBuf) || !crypto.timingSafeEqual(expectedBuf, sigBuf)) {
+      return NextResponse.json({ received: false, error: 'Invalid signature' }, { status: 400 });
+    }
+  } catch (err: any) {
+    return NextResponse.json({ received: false, error: 'Signature verification failed' }, { status: 400 });
   }
 
   const payload = JSON.parse(body);

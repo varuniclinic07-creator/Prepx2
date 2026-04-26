@@ -14,7 +14,6 @@ export async function generateTopicContent(topicTag: string, topicTitle: string)
   pyqs: { year: number; question: string; answer: string }[];
   common_traps: string[];
   summary: string;
-  source_url: string;
 }> {
   const prompt = `Write UPSC-focused chapter content for the topic "${topicTitle}" (syllabus tag ${topicTag}).
 
@@ -30,8 +29,7 @@ Format JSON:
   "key_concepts": [{"title":"string","body":"string"}],
   "pyqs": [{"year":number,"question":"string","answer":"string"}],
   "common_traps": ["string"],
-  "summary": "string",
-  "source_url": ""
+  "summary": "string"
 }`;
 
   const raw = await aiChat({
@@ -62,7 +60,6 @@ export async function seedPolityTopics(
         syllabus_tag: chapter.tag,
         content,
         readability_score: 70,
-        source_url: '',
       });
       if (error) {
         console.warn(`[Content Agent] Failed to seed ${chapter.tag}:`, error.message);

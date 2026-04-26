@@ -325,7 +325,6 @@ CREATE POLICY "Users insert own transactions" ON coin_transactions FOR INSERT WI
 
 CREATE UNIQUE INDEX idx_coin_transactions_idempotent ON coin_transactions(user_id, idempotency_key);
 CREATE INDEX idx_coin_transactions_user ON coin_transactions(user_id, created_at DESC);
-CREATE INDEX idx_notifications_user_read ON user_notifications(user_id, read);
 
 -- Sprint 8: F1 — Rank Oracle (Predictive Rank Engine)
 CREATE TABLE user_predictions (
@@ -344,7 +343,6 @@ ALTER TABLE user_predictions ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Users read own predictions" ON user_predictions FOR SELECT USING (auth.uid() = user_id);
 CREATE POLICY "Users upsert own predictions" ON user_predictions FOR ALL USING (auth.uid() = user_id);
 CREATE INDEX idx_user_predictions_user ON user_predictions(user_id, created_at DESC);
-CREATE INDEX idx_notifications_user_read ON user_notifications(user_id, read);
 
 -- Sprint 8: F3 — Streak Battles
 CREATE TABLE streak_battles (
@@ -382,8 +380,6 @@ CREATE POLICY "Users update own participation" ON battle_participants FOR UPDATE
 CREATE INDEX idx_streak_battles_status ON streak_battles(status);
 CREATE INDEX idx_battle_participants_user ON battle_participants(user_id);
 CREATE INDEX idx_battle_participants_battle ON battle_participants(battle_id);
-CREATE INDEX idx_notifications_user_read ON user_notifications(user_id, read);
-CREATE INDEX idx_notifications_user_read ON user_notifications(user_id, read);
 
 -- Sprint 9: Daily Dhwani (AI Current Affairs Podcast)
 CREATE TABLE daily_dhwani (
@@ -431,7 +427,7 @@ CREATE TABLE user_telegrams (
 CREATE INDEX idx_daily_dhwani_date ON daily_dhwani(date);
 CREATE INDEX idx_battle_events_status ON battle_royale_events(status);
 CREATE INDEX idx_battle_participants_event ON battle_royale_participants(event_id);
-CREATE INDEX idx_battle_participants_user ON battle_royale_participants(user_id);
+CREATE INDEX idx_battle_royale_participants_user ON battle_royale_participants(user_id);
 
 
 -- RLS for Sprint 9 tables
@@ -690,3 +686,45 @@ CREATE POLICY "Tenants public read" ON white_label_tenants FOR SELECT USING (tru
 CREATE POLICY "Admin manage tenants" ON white_label_tenants FOR ALL USING (true);
 
 CREATE INDEX idx_tenants_slug ON white_label_tenants(slug);
+
+-- Phase 1 Fix 1.10: RLS on public-content and user-data tables
+
+-- Topics: all authenticated users read; admin write
+ALTER TABLE topics ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Topics read all auth" ON topics FOR SELECT USING (auth.role() = 'authenticated');
+CREATE POLICY "Topics admin write" ON topics FOR ALL USING (EXISTS (
+  SELECT 1 FROM users WHERE users.id = auth.uid() AND users.role = 'admin'
+));
+
+-- Quizzes: all authenticated users read; admin write
+ALTER TABLE quizzes ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Quizzes read all auth" ON quizzes FOR SELECT USING (auth.role() = 'authenticated');
+CREATE POLICY "Quizzes admin write" ON quizzes FOR ALL USING (EXISTS (
+  SELECT 1 FROM users WHERE users.id = auth.uid() AND users.role = 'admin'
+));
+
+-- Squads: all authenticated users read; admin write
+ALTER TABLE squads ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Squads read all auth" ON squads FOR SELECT USING (auth.role() = 'authenticated');
+CREATE POLICY "Squads admin write" ON squads FOR ALL USING (EXISTS (
+  SELECT 1 FROM users WHERE users.id = auth.uid() AND users.role = 'admin'
+));
+
+-- Squad members: read own squad memberships + see squad mates; manage by admin
+ALTER TABLE squad_members ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Squad members read own" ON squad_members FOR SELECT USING (
+  user_id = auth.uid() OR
+  EXISTS (
+    SELECT 1 FROM squad_members sm WHERE sm.squad_id = squad_members.squad_id AND sm.user_id = auth.uid()
+  )
+);
+CREATE POLICY "Squad members admin write" ON squad_members FOR ALL USING (EXISTS (
+  SELECT 1 FROM users WHERE users.id = auth.uid() AND users.role = 'admin'
+));
+
+-- User cohorts: read own only; admin can read all
+ALTER TABLE user_cohorts ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "User cohorts read own" ON user_cohorts FOR SELECT USING (user_id = auth.uid());
+CREATE POLICY "User cohorts admin all" ON user_cohorts FOR ALL USING (EXISTS (
+  SELECT 1 FROM users WHERE users.id = auth.uid() AND users.role = 'admin'
+));

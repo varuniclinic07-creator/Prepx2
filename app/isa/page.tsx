@@ -19,6 +19,7 @@ export default function IsaPage() {
   const [eligible, setEligible] = useState(false);
   const [reason, setReason] = useState('');
   const [contract, setContract] = useState<IsaContract | null>(null);
+  const [payments, setPayments] = useState<any[]>([]);
   const [agreed, setAgreed] = useState(false);
   const [enrolling, setEnrolling] = useState(false);
   const router = useRouter();
@@ -36,6 +37,13 @@ export default function IsaPage() {
       })
       .catch(() => setLoading(false));
   }, []);
+
+  useEffect(() => {
+    if (!contract) return;
+    fetch('/api/isa/payments')
+      .then(r => r.json())
+      .then(d => setPayments(d.payments || []));
+  }, [contract]);
 
   const handleEnroll = async () => {
     if (!agreed) return;
@@ -57,6 +65,9 @@ export default function IsaPage() {
       { label: 'Mains Cleared', done: contract.mains_cleared, amount: 4999 },
       { label: 'Final Selected', done: contract.final_selected, amount: 9999 },
     ];
+    const paymentMap: Record<string, any> = {};
+    payments.forEach(p => { paymentMap[p.milestone] = p; });
+
     return (
       <div className="max-w-2xl mx-auto space-y-6">
         <h1 className="text-2xl font-bold text-slate-100">Vijay Guarantee Contract</h1>
@@ -74,15 +85,22 @@ export default function IsaPage() {
             <span className="text-lg font-bold text-slate-100">₹{contract.total_due.toLocaleString()}</span>
           </div>
           <div className="space-y-2 pt-2">
-            {milestones.map(m => (
-              <div key={m.label} className="flex items-center justify-between py-2 border-b border-slate-800">
-                <div className="flex items-center gap-2">
-                  <span className={`w-2 h-2 rounded-full ${m.done ? 'bg-emerald-400' : 'bg-slate-600'}`} />
-                  <span className="text-sm text-slate-300">{m.label}</span>
+            {milestones.map(m => {
+              const pm = paymentMap[m.label.toLowerCase().replace(' cleared', '').replace(' selected', '')] as any;
+              const paid = pm?.status === 'paid';
+              return (
+                <div key={m.label} className="flex items-center justify-between py-2 border-b border-slate-800">
+                  <div className="flex items-center gap-2">
+                    <span className={`w-2 h-2 rounded-full ${m.done ? 'bg-emerald-400' : 'bg-slate-600'}`} />
+                    <span className="text-sm text-slate-300">{m.label}</span>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <span className="text-sm font-mono text-slate-400">₹{m.amount}</span>
+                    <span className={`text-xs font-bold uppercase ${paid ? 'text-emerald-400' : 'text-amber-400'}`}>{paid ? 'PAID' : 'UNPAID'}</span>
+                  </div>
                 </div>
-                <span className="text-sm font-mono text-slate-400">₹{m.amount}</span>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       </div>

@@ -16,7 +16,7 @@ export default function RevealPage() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
       const { data: u } = await supabase.from('users').select('baseline_score,created_at').eq('id', user.id).single();
-      const { data: session } = await supabase.from('user_sessions').select('readiness_score,created_at').eq('user_id', user.id).single();
+      const { data: session } = await supabase.from('user_sessions').select('created_at').eq('user_id', user.id).single();
       const { data: cohort } = await supabase.from('user_cohorts').select('cohort_start_date').eq('user_id', user.id).single();
 
       const start = new Date(cohort?.cohort_start_date ?? session?.created_at ?? u?.created_at ?? new Date());
@@ -24,7 +24,7 @@ export default function RevealPage() {
       const d = Math.min(14, Math.max(0, Math.floor((Date.now() - start.getTime()) / (1000 * 60 * 60 * 24))));
       setDay(d);
       setBaseline(u?.baseline_score ?? 0);
-      setCurrent(session?.readiness_score ?? 0);
+      setCurrent(0);
     }
     load();
   }, []);

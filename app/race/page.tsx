@@ -2,7 +2,7 @@ import { createClient } from '@/lib/supabase-server';
 import Link from 'next/link';
 
 export default async function RacePage() {
-  const supabase = createClient();
+  const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
 
   let readiness = 0;
@@ -12,7 +12,7 @@ export default async function RacePage() {
 
   if (user) {
     const { data: session } = await supabase.from('user_sessions').select('*').eq('user_id', user.id).single();
-    readiness = session?.readiness_score ?? 0;
+    readiness = 0;
     level = readiness >= 80 ? 5 : readiness >= 60 ? 4 : readiness >= 40 ? 3 : readiness >= 20 ? 2 : 1;
 
     const { data: weakAreas } = await supabase.from('user_weak_areas').select('gap_type').eq('user_id', user.id);

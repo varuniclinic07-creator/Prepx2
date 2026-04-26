@@ -15,6 +15,7 @@ interface AstraScript {
   topic: string;
   script: AstraFrame[];
   status: string;
+  video_url?: string;
 }
 
 export default function AstraPage() {
@@ -123,6 +124,12 @@ export default function AstraPage() {
           {loading ? 'Generating...' : 'Generate'}
         </button>
       </div>
+
+      {script && script.video_url && (
+          <div className="rounded-xl overflow-hidden border border-slate-800">
+            <video controls src={script.video_url} className="w-full" />
+          </div>
+        )}
 
       {/* Script display */}
       {script && frames.length > 0 && (

@@ -3,11 +3,11 @@
 import { useState } from 'react';
 
 const PROVIDERS = [
-  { name: 'Ollama Cloud', tier: 1, env: 'OLLAMA_API_KEY', model: process.env.NEXT_PUBLIC_OLLAMA_MODEL || 'gemma4:31b-cloud' },
-  { name: 'Groq', tier: 2, env: 'GROQ_API_KEYS (x7)', model: process.env.NEXT_PUBLIC_GROQ_MODEL || 'llama-3.3-70b-versatile' },
-  { name: '9router', tier: 3, env: 'NINEROUTER_API_KEY', model: process.env.NEXT_PUBLIC_NINEROUTER_MODEL || 'kr/claude-sonnet-4.5' },
-  { name: 'NVIDIA', tier: 4, env: 'NVIDIA_API_KEY', model: process.env.NEXT_PUBLIC_NVIDIA_MODEL || 'Nvidia/Llama-3.3-Nemotron-Super-49B-v1.5' },
-  { name: 'Kilo AI', tier: 5, env: 'KILO_API_KEYS (x4)', model: '4-model rotation' },
+  { name: 'Ollama Cloud', tier: 1, env: '****', model: '****' },
+  { name: 'Groq', tier: 2, env: '****', model: '****' },
+  { name: '9router', tier: 3, env: '****', model: '****' },
+  { name: 'NVIDIA', tier: 4, env: '****', model: '****' },
+  { name: 'Kilo AI', tier: 5, env: '****', model: '****' },
 ];
 
 export default function AiProvidersPage() {

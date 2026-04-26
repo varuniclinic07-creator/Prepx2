@@ -1,7 +1,10 @@
 import { NextResponse } from 'next/server';
 
 export async function POST(req: Request) {
-  const body = await req.json();
+  let body: any;
+  try { body = await req.json(); } catch {
+    return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 });
+  }
   const { type, data } = body;
 
   if (type === 'checkout.session.completed' || type === 'invoice.paid') {

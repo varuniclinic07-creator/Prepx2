@@ -1,10 +1,8 @@
-export function getTenantFromHost(host?: string | null): { slug: string | null; isDefault: boolean } {
-  if (!host) return { slug: null, isDefault: true };
+export function getTenantFromHost(host: string | null): { isDefault: boolean; slug: string | null; name?: string | null } {
+  if (!host) return { isDefault: true, slug: null };
   const parts = host.split('.');
-  // Support: drishti.prepx.ai → drishti, OR slug via custom domain stub
-  if (parts.length >= 3) {
-    const slug = parts[0];
-    if (slug && slug !== 'www' && slug !== 'api') return { slug, isDefault: false };
-  }
-  return { slug: null, isDefault: true };
+  if (parts.length <= 2) return { isDefault: true, slug: null };
+  const sub = parts[0];
+  if (sub === 'www' || sub === 'api') return { isDefault: true, slug: null };
+  return { isDefault: false, slug: sub };
 }

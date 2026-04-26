@@ -1,13 +1,24 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { createClient } from '@/lib/supabase-browser';
+
+function useSquadsData() {
+  const [leaderboard, setLeaderboard] = useState<any[]>([]);
+  const [activity, setActivity] = useState<any[]>([]);
+  useEffect(() => {
+    fetch('/api/squads/leaderboard').then(r => r.json()).then(d => setLeaderboard(d.leaderboard || []));
+    fetch('/api/squads/activity').then(r => r.json()).then(d => setActivity(d.activity || []));
+  }, []);
+  return { leaderboard, activity };
+}
 
 export default function SquadsPage() {
   const [name, setName] = useState('');
   const [subject, setSubject] = useState('polity');
   const [invite, setInvite] = useState('');
   const [result, setResult] = useState('');
+  const { leaderboard, activity } = useSquadsData();
 
   const supabase = createClient();
 
@@ -57,6 +68,45 @@ export default function SquadsPage() {
       </div>
 
       {result && <div className="text-sm text-slate-300">{result}</div>}
+
+      <div className="bg-slate-900 border border-slate-800 rounded-xl p-6 space-y-4">
+        <h2 className="text-lg font-semibold text-slate-100">Leaderboard</h2>
+        {leaderboard.length === 0 ? (
+          <p className="text-sm text-slate-500">No squads yet.</p>
+        ) : (
+          <div className="space-y-2">
+            {leaderboard.map((squad: any, i: number) => (
+              <div key={squad.id} className="flex items-center justify-between bg-slate-800 rounded-lg p-3 text-sm">
+                <div className="flex items-center gap-3">
+                  <span className="text-xs font-bold text-slate-500">#{i + 1}</span>
+                  <span className="font-semibold text-slate-200">{squad.name}</span>
+                  <span className="text-xs text-slate-500">({squad.subject})</span>
+                </div>
+                <div className="flex items-center gap-4">
+                  <span className="text-xs text-slate-400">{squad.members} members</span>
+                  <span className="text-amber-400 font-bold">{squad.totalCoins} 🪙</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      <div className="bg-slate-900 border border-slate-800 rounded-xl p-6 space-y-4">
+        <h2 className="text-lg font-semibold text-slate-100">Activity Feed</h2>
+        {activity.length === 0 ? (
+          <p className="text-sm text-slate-500">No recent activity.</p>
+        ) : (
+          <div className="space-y-2">
+            {activity.map((a: any, i: number) => (
+              <div key={i} className="text-sm text-slate-300 bg-slate-800 rounded-lg p-3">
+                {a.message}
+                <span className="text-xs text-slate-500 ml-2">{new Date(a.created_at).toLocaleString()}</span>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   );
 }

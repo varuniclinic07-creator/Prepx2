@@ -3,7 +3,7 @@ import { createClient } from '@/lib/supabase-server';
 
 export async function POST(request: NextRequest) {
   try {
-    const supabase = createClient();
+    const supabase = await createClient();
     const { data: districts } = await supabase.from('districts').select('*').order('name');
     const { data: squads } = await supabase.from('squads').select('id, name');
     const { data: ownership } = await supabase.from('territory_ownership').select('*');

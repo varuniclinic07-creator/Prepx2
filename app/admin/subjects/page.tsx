@@ -3,7 +3,7 @@ import { ALL_SUBJECTS } from '@/lib/agents/subjects';
 import Link from 'next/link';
 
 export default async function AdminSubjectsPage() {
-  const supabase = createClient();
+  const supabase = await createClient();
 
   // Count topics per subject
   const subjectCounts: Record<string, number> = {};

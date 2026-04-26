@@ -28,6 +28,13 @@ export default function WhiteLabelPage() {
     loadTenants();
   }
 
+  async function deleteTenant(id: string) {
+    if (!confirm('Delete this tenant?')) return;
+    const res = await fetch(`/api/admin/tenants/${id}`, { method: 'DELETE' });
+    if (res.ok) { loadTenants(); }
+    else alert('Delete failed');
+  }
+
   return (
     <div className="space-y-6">
       <h1 className="text-2xl font-bold text-slate-100">White-Label Tenants</h1>
@@ -57,6 +64,7 @@ export default function WhiteLabelPage() {
                 <td className="px-4 py-3 space-x-2">
                   <button onClick={() => toggleStatus(t.id, t.status === 'active' ? 'suspended' : 'active')} className="text-xs px-2 py-1 rounded bg-slate-800 text-slate-300 hover:bg-slate-700">Toggle</button>
                   <Link href={`/admin/white-label/${t.slug}`} className="text-xs px-2 py-1 rounded bg-slate-800 text-slate-300 hover:bg-slate-700">Details →</Link>
+                  <button onClick={() => deleteTenant(t.id)} className="text-xs px-2 py-1 rounded bg-red-500/20 text-red-400 hover:bg-red-500/30">Delete</button>
                 </td>
               </tr>
             ))}

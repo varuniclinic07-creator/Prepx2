@@ -1,7 +1,7 @@
 import { createClient } from '@/lib/supabase-server';
 
 export default async function AdminPricingPage() {
-  const supabase = createClient();
+  const supabase = await createClient();
   const { data: subs } = await supabase.from('subscriptions').select('*');
   const { data: flags } = await supabase.from('feature_flags').select('*');
 

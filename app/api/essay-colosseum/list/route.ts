@@ -4,7 +4,7 @@ import { createClient } from '@/lib/supabase-server';
 // AC-10: List matches for current user
 export async function POST(request: NextRequest) {
   try {
-    const supabase = createClient();
+    const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return NextResponse.json({ matches: [] });
 

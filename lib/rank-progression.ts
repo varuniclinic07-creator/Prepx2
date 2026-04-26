@@ -46,7 +46,7 @@ const RANK_REQUIREMENTS: Record<OfficerRank, (userId: string, supabase: any) => 
 };
 
 export async function checkAndPromoteUser(userId: string): Promise<{ promoted: boolean; newRank?: OfficerRank; oldRank?: OfficerRank }> {
-  const supabase = createClient();
+  const supabase = await createClient();
 
   // Fetch current rank
   const { data: rankRow } = await supabase.from('user_office_ranks').select('*').eq('user_id', userId).single();
@@ -86,7 +86,7 @@ export async function checkAndPromoteUser(userId: string): Promise<{ promoted: b
 }
 
 export async function getUserRank(userId: string): Promise<{ current_rank: OfficerRank; promoted_at: string | null }> {
-  const supabase = createClient();
+  const supabase = await createClient();
   const { data } = await supabase.from('user_office_ranks').select('*').eq('user_id', userId).single();
   return { current_rank: data?.current_rank || 'ASO', promoted_at: data?.promoted_at || null };
 }

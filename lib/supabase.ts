@@ -86,7 +86,7 @@ export async function getTopic(topicId: string): Promise<Topic | null> {
   if (!data) return null;
   return { id: data.id, title: data.title, subject: 'polity',
     syllabus_tag: data.syllabus_tag, content: data.content,
-    readability_score: data.readability_score, source_url: data.source_url };
+    readability_score: data.readability_score,  };
 }
 
 export async function getTopicBySyllabusTag(tag: string): Promise<Topic | null> {
@@ -94,7 +94,7 @@ export async function getTopicBySyllabusTag(tag: string): Promise<Topic | null> 
   if (!data) return null;
   return { id: data.id, title: data.title, subject: 'polity',
     syllabus_tag: data.syllabus_tag, content: data.content,
-    readability_score: data.readability_score, source_url: data.source_url };
+    readability_score: data.readability_score,  };
 }
 
 // === Quizzes ===

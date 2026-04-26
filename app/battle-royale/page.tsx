@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/lib/supabase';
-import { subscribeToTable } from '@/lib/realtime';
+import { subscribeToTable, subscribeToAll } from '@/lib/realtime';
 
 interface Q {
   question: string;
@@ -47,11 +47,17 @@ export default function BattleRoyalePage() {
     setLoading(false);
   }, []);
 
+  useEffect(() => { fetchEvents(); }, [fetchEvents]);
   useEffect(() => {
-    fetchEvents();
-    const iv = setInterval(fetchEvents, 10000);
-    return () => clearInterval(iv);
-  }, [fetchEvents]);
+    const unsub = subscribeToAll(supabase, 'battle_royale_events', (payload) => {
+      if (payload.eventType === 'INSERT') {
+        setEvents(prev => [...prev, payload.new as EventData]);
+      } else if (payload.eventType === 'UPDATE') {
+        setEvents(prev => prev.map(e => e.id === payload.new.id ? payload.new as EventData : e));
+      }
+    });
+    return unsub;
+  }, []);
 
   // Realtime updates for current event
   useEffect(() => {
@@ -68,12 +74,12 @@ export default function BattleRoyalePage() {
 
   useEffect(() => {
     if (!currentEvent?.id) return;
-    const iv = setInterval(async () => {
-      const res = await fetch(`/api/battle-royale?type=leaderboard&event_id=${currentEvent.id}`, { credentials: 'same-origin' });
-      const data = await res.json();
-      setParticipants(data.leaderboard || []);
-    }, 3000);
-    return () => clearInterval(iv);
+    const unsub = subscribeToTable(supabase, 'battle_royale_participants', `event_id=eq.${currentEvent.id}`, () => {
+      fetch(`/api/battle-royale?type=leaderboard&event_id=${currentEvent.id}`, { credentials: 'same-origin' })
+        .then(r => r.json())
+        .then(data => setParticipants(data.leaderboard || []));
+    });
+    return unsub;
   }, [currentEvent?.id]);
 
   useEffect(() => {
@@ -102,12 +108,16 @@ export default function BattleRoyalePage() {
     const statusData = await statusRes.json();
     setCurrentEvent(statusData.event);
     setTimeLeft(15);
-    // Load questions from a default quiz (mock)
-    setQuestions([
-      { question: 'Which article of the Indian Constitution deals with the Right to Equality?', options: ['Article 14', 'Article 19', 'Article 21', 'Article 32'], correct_option: 'Article 14' },
-      { question: 'Who was the first President of India?', options: ['Jawaharlal Nehru', 'Dr. Rajendra Prasad', 'Sardar Patel', 'B.R. Ambedkar'], correct_option: 'Dr. Rajendra Prasad' },
-      { question: 'The Parliament of India consists of:', options: ['Lok Sabha only', 'Rajya Sabha only', 'President, Lok Sabha and Rajya Sabha', 'Prime Minister and Cabinet'], correct_option: 'President, Lok Sabha and Rajya Sabha' },
-    ]);
+    // Load questions dynamically from the event's linked quiz
+    if (statusData.event?.quiz_id) {
+      const { data: quizData } = await supabase.from('quizzes').select('questions').eq('id', statusData.event.quiz_id).single();
+      const loaded = quizData?.questions || [];
+      setQuestions(loaded.map((q: any) => ({
+        question: q.question || q.text || '',
+        options: q.options || [],
+        correct_option: q.correct_option || q.answer || ''
+      })));
+    }
     setCurrentQIndex(0);
     setEliminated(false);
     setWinner(false);

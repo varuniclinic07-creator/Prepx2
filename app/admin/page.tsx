@@ -1,7 +1,7 @@
 import { createClient } from '@/lib/supabase-server';
 
 export default async function AdminPage() {
-  const supabase = createClient();
+  const supabase = await createClient();
   const [topics, quizzes, users] = await Promise.all([
     supabase.from('topics').select('id', { count: 'exact' }),
     supabase.from('quizzes').select('id', { count: 'exact' }),

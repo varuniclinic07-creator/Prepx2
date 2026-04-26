@@ -1,7 +1,7 @@
 import { createClient } from '@/lib/supabase-server';
 
 export default async function SourcesPage() {
-  const supabase = createClient();
+  const supabase = await createClient();
   const { data: sources } = await supabase.from('government_sources').select('*');
 
   return (

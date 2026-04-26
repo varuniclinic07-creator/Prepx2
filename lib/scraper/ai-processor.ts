@@ -9,7 +9,7 @@ export interface EnrichedContent {
   pyqs: { year: number; question: string; answer: string }[];
   common_traps: string[];
   summary: string;
-  source_url: string;
+  
 }
 
 export interface BilingualContent {
@@ -71,7 +71,6 @@ Return JSON:
   ],
   "common_traps": ["...", "..."],
   "summary": "...",
-  "source_url": "${sourceUrl}"
 }`;
 
   const raw = await aiChat({
@@ -94,7 +93,7 @@ Return JSON:
       pyqs: (parsed.pyqs || []).map((q: any) => ({ year: q.year || 2023, question: sanitizeContent(q.question || ''), answer: sanitizeContent(q.answer || '') })),
       common_traps: (parsed.common_traps || []).map((t: string) => sanitizeContent(t)),
       summary: sanitizeContent(parsed.summary || ''),
-      source_url: sourceUrl,
+      
     };
   } catch {
     en = {
@@ -104,7 +103,7 @@ Return JSON:
       pyqs: [],
       common_traps: ['Check back after processing.'],
       summary: sanitizeContent(raw.slice(0, 500)),
-      source_url: sourceUrl,
+      
     };
   }
 
@@ -129,7 +128,7 @@ Return JSON:
       pyqs: (parsed.pyqs || en.pyqs).map((q: any) => ({ year: q.year || 2023, question: sanitizeContent(q.question || ''), answer: sanitizeContent(q.answer || '') })),
       common_traps: (parsed.common_traps || en.common_traps).map((t: string) => sanitizeContent(t)),
       summary: sanitizeContent(parsed.summary || en.summary),
-      source_url: sourceUrl,
+      
     };
   } catch {
     hi = { ...en, title: sanitizeContent(`${topicTitle} (हिन्दी)`) };

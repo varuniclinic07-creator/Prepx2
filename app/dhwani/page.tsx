@@ -1,9 +1,10 @@
 import { createClient } from '@/lib/supabase-server';
 import Link from 'next/link';
 import DownloadDhwani from './DownloadDhwani';
+import AudioPlayer from './AudioPlayer';
 
 export default async function DhwaniPage() {
-  const supabase = createClient();
+  const supabase = await createClient();
   const today = new Date().toISOString().split('T')[0];
 
   const { data } = await supabase
@@ -31,11 +32,7 @@ export default async function DhwaniPage() {
               <DownloadDhwani script={data.script_text || ''} date={today} />
             </div>
 
-            <div className="bg-amber-500/10 border border-amber-500/20 rounded-lg p-4 text-center">
-              <span className="text-sm text-amber-300">
-                🔈 Audio coming soon — read the script below
-              </span>
-            </div>
+            <AudioPlayer scriptText={data.script_text || ''} />
 
             <div className="space-y-3">
               {(data.stories || []).map((story: any, idx: number) => (

@@ -83,7 +83,7 @@ export default function PricingPage() {
         return;
       }
 
-      const rzpKey = process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID || 'rzp_test_dummy';
+      const rzpKey = process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID;
       if (typeof (window as any).Razorpay !== 'function') {
         await new Promise<void>((resolve, reject) => {
           const script = document.createElement('script');
@@ -95,6 +95,11 @@ export default function PricingPage() {
         });
       }
 
+      if (!rzpKey) {
+        setToast({ type: 'error', message: 'Payment gateway not configured.' });
+        setBusy(false);
+        return;
+      }
       const rzp = new (window as any).Razorpay({
         key: rzpKey,
         amount: data.amount,

@@ -2,7 +2,7 @@ import { createClient } from '@/lib/supabase-server';
 import { HERMES_STATES } from '@/lib/agents/hermes';
 
 export default async function AdminHermesPage() {
-  const supabase = createClient();
+  const supabase = await createClient();
 
   const { data: sessions } = await supabase.from('user_sessions').select('*');
   const { count: total } = await supabase.from('user_sessions').select('id', { count: 'exact' });
@@ -31,7 +31,6 @@ export default async function AdminHermesPage() {
               <th className="px-4 py-3">User ID</th>
               <th className="px-4 py-3">State</th>
               <th className="px-4 py-3">Last Activity</th>
-              <th className="px-4 py-3">Readiness Score</th>
               <th className="px-4 py-3">Topic</th>
             </tr>
           </thead>
@@ -41,11 +40,10 @@ export default async function AdminHermesPage() {
                 <td className="px-4 py-3 text-slate-300 font-mono text-xs">{s.user_id?.slice(0,8)}...</td>
                 <td className="px-4 py-3"><span className={`text-xs font-medium px-2 py-1 rounded-full ${getStateBadge(s.session_state)}`}>{s.session_state}</span></td>
                 <td className="px-4 py-3 text-slate-400 text-xs">{new Date(s.last_activity_at).toLocaleString()}</td>
-                <td className="px-4 py-3 text-emerald-400 font-mono">{s.readiness_score?.toFixed(1) ?? 0}</td>
                 <td className="px-4 py-3 text-slate-400 text-xs">{s.current_topic_id?.slice(0,8) ?? '-'}</td>
               </tr>
             )) : (
-              <tr><td colSpan={5} className="px-4 py-8 text-center text-slate-500">No active sessions yet</td></tr>
+              <tr><td colSpan={4} className="px-4 py-8 text-center text-slate-500">No active sessions yet</td></tr>
             )}
           </tbody>
         </table>

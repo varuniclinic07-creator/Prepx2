@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { RefreshButton } from './RefreshButton';
 
 export default async function RankPage() {
-  const supabase = createClient();
+  const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect('/login');
 

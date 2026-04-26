@@ -7,13 +7,26 @@ export default function AdminTutorsPage() {
   const [tutors, setTutors] = useState<Tutor[]>([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    fetch('/api/tutors/create').then(r => r.json()).then(d => { setTutors(d.tutors || []); setLoading(false); });
-  }, []);
+  useEffect(() => { loadTutors(); }, []);
+
+  const loadTutors = async () => {
+    setLoading(true);
+    const res = await fetch('/api/tutors/create');
+    const d = await res.json();
+    setTutors(d.tutors || []);
+    setLoading(false);
+  };
 
   const toggleApproval = async (id: string, approved: boolean) => {
-    await fetch(`/api/tutors/create`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id, approved }) });
+    await fetch('/api/tutors/create', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id, approved }) });
     setTutors(prev => prev.map(t => t.id === id ? { ...t, approved } : t));
+  };
+
+  const deleteTutor = async (id: string) => {
+    if (!confirm('Delete this tutor?')) return;
+    const res = await fetch(`/api/admin/tutors/${id}`, { method: 'DELETE' });
+    if (res.ok) { loadTutors(); }
+    else alert('Delete failed');
   };
 
   if (loading) return <div className="text-slate-300">Loading…</div>;
@@ -24,7 +37,7 @@ export default function AdminTutorsPage() {
       <div className="rounded-xl border border-slate-800 bg-slate-900 overflow-auto">
         <table className="w-full text-sm">
           <thead className="bg-slate-800 text-slate-400 uppercase text-xs">
-            <tr><th className="px-4 py-3 text-left">Name</th><th className="px-4 py-3 text-left">Subject</th><th className="px-4 py-3 text-left">Price</th><th className="px-4 py-3 text-left">Rating</th><th className="px-4 py-3 text-left">Subs</th><th className="px-4 py-3 text-left">Approved</th></tr>
+            <tr><th className="px-4 py-3 text-left">Name</th><th className="px-4 py-3 text-left">Subject</th><th className="px-4 py-3 text-left">Price</th><th className="px-4 py-3 text-left">Rating</th><th className="px-4 py-3 text-left">Subs</th><th className="px-4 py-3 text-left">Approved</th><th className="px-4 py-3 text-left">Actions</th></tr>
           </thead>
           <tbody className="divide-y divide-slate-800">
             {tutors.map(t => (
@@ -37,9 +50,12 @@ export default function AdminTutorsPage() {
                 <td className="px-4 py-3">
                   <button onClick={() => toggleApproval(t.id, !t.approved)} className={`text-xs px-2 py-1 rounded ${t.approved ? 'bg-emerald-500/20 text-emerald-400' : 'bg-slate-700 text-slate-300'}`}>{t.approved ? 'Yes' : 'No'}</button>
                 </td>
+                <td className="px-4 py-3">
+                  <button onClick={() => deleteTutor(t.id)} className="text-xs px-2 py-1 rounded bg-red-500/20 text-red-400 hover:bg-red-500/30">Delete</button>
+                </td>
               </tr>
             ))}
-            {tutors.length === 0 && <tr><td colSpan={6} className="px-4 py-8 text-center text-slate-500">No tutors</td></tr>}
+            {tutors.length === 0 && <tr><td colSpan={7} className="px-4 py-8 text-center text-slate-500">No tutors</td></tr>}
           </tbody>
         </table>
       </div>

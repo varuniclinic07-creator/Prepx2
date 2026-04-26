@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { getUserRank } from '@/lib/rank-progression';
 
 export default async function ProfilePage() {
-  const supabase = createClient();
+  const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect('/login');
   const { data: profile } = await supabase.from('users').select('*').eq('id', user.id).single();

@@ -8,7 +8,7 @@ export async function generateDailyPlan(userId: string): Promise<QuizTask[]> {
   const [{ data: weakAreas }, { data: attempts }, { data: sessions }] = await Promise.all([
     supabase.from('user_weak_areas').select('topic_id').eq('user_id', userId),
     supabase.from('quiz_attempts').select('quiz_id').eq('user_id', userId),
-    supabase.from('user_sessions').select('session_state,readiness_score').eq('user_id', userId).single(),
+    supabase.from('user_sessions').select('session_state').eq('user_id', userId).single(),
   ]);
 
   const weakTopicIds = (weakAreas || []).map(w => w.topic_id);

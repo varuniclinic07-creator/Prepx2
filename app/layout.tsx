@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import './globals.css';
 import { createClient } from '@/lib/supabase-server';
 import Link from 'next/link';
+import NotificationBell from '@/components/nav/NotificationBell';
 import { headers } from 'next/headers';
 
 export const metadata: Metadata = {
@@ -10,7 +11,7 @@ export const metadata: Metadata = {
 };
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
-  const supabase = createClient();
+  const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
 
   const unreadCount = user
@@ -59,11 +60,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
                   <Link href="/shop" className="flex items-center gap-1 text-sm text-amber-400 hover:text-amber-300 transition">
                     🪙 <span className="font-bold">{coinBalance}</span>
                   </Link>
-                  {typeof unreadCount === 'number' && unreadCount > 0 && (
-                    <Link href="/profile" className="relative text-sm text-amber-400 hover:text-amber-300 transition">
-                      🔔 <span className="absolute -top-1 -right-2 bg-red-500 text-white text-[10px] px-1 rounded-full font-bold">{unreadCount}</span>
-                    </Link>
-                  )}
+                  <NotificationBell />
                   <Link href="/profile" className="text-sm text-slate-400 hover:text-slate-200 transition">Profile</Link>
                   <Link href="/rank" className="text-sm text-slate-400 hover:text-slate-200 transition">Rank</Link>
                   <Link href="/mnemonics" className="text-sm text-slate-400 hover:text-slate-200 transition">Mnemonics</Link>

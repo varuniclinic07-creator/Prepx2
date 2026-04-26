@@ -23,6 +23,19 @@ export default function VoicePage() {
   const [aiResponse, setAiResponse] = useState('');
   const [logs, setLogs] = useState<LogEntry[]>([]);
   const recognitionRef = useRef<any>(null);
+  const transcriptRef = useRef<string>('');
+
+  const processTranscript = async (text: string) => {
+    if (!text.trim()) { setState('idle'); return; }
+    const intent = parseIntent(text);
+    const response = await executeIntent(intent, '');
+    setAiResponse(response);
+    addLog('user', text);
+    addLog('ai', response);
+    speak(response);
+    setState('speaking');
+    setTimeout(() => setState('idle'), response.length * 60);
+  };
 
   const startListening = () => {
     if (!('SpeechRecognition' in window) && !('webkitSpeechRecognition' in window)) {
@@ -40,30 +53,26 @@ export default function VoicePage() {
         .map((r: any) => r[0].transcript)
         .join('');
       setTranscript(t);
+      transcriptRef.current = t;
     };
     rec.onerror = (e: any) => {
       console.error('[Voice]', e.error);
       setState('idle');
     };
     rec.onend = () => {
+      const t = (transcriptRef.current || '').trim();
+      if (!/prep[xX]/i.test(t)) {
+        setState('idle');
+        setTranscript('');
+        addLog('ai', "Say 'PrepX' to activate.");
+        return;
+      }
       setState('thinking');
-      processTranscript(transcript || '');
+      processTranscript(t);
     };
     recognitionRef.current = rec;
     rec.start();
     setTimeout(() => { try { rec.stop(); } catch {} }, 5000);
-  };
-
-  const processTranscript = async (text: string) => {
-    if (!text.trim()) { setState('idle'); return; }
-    const intent = parseIntent(text);
-    const response = await executeIntent(intent, '');
-    setAiResponse(response);
-    addLog('user', text);
-    addLog('ai', response);
-    speak(response);
-    setState('speaking');
-    setTimeout(() => setState('idle'), response.length * 60);
   };
 
   const addLog = (speaker: 'user' | 'ai', text: string) => {

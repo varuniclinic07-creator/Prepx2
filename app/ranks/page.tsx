@@ -2,7 +2,7 @@ import { createClient } from '@/lib/supabase-server';
 import { getUserRank, getRankProgress, getRankRequirements, OfficerRank } from '@/lib/rank-progression';
 
 export default async function RanksPage() {
-  const supabase = createClient();
+  const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) {
     return (

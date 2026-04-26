@@ -64,6 +64,14 @@ export default function TerritoryPage() {
 
   useEffect(() => {
     loadDistricts();
+    const iv = setInterval(() => {
+      fetch('/api/territory/auto-transition', { method: 'POST' })
+        .then(r => r.json())
+        .then(data => {
+          if (data.count > 0) loadDistricts();
+        });
+    }, 60000);
+    return () => clearInterval(iv);
   }, []);
 
   async function loadDistricts() {

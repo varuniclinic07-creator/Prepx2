@@ -2,7 +2,7 @@ import { createClient } from '@/lib/supabase-server';
 
 // AC-13: captureDistrict checks mastery then assigns to user's squad
 export async function captureDistrict(userId: string, districtId: string): Promise<{ success: boolean; message: string }> {
-  const supabase = createClient();
+  const supabase = await createClient();
 
   // Get user's squad
   const { data: membership } = await supabase
