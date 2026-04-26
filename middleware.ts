@@ -1,9 +1,14 @@
 import { createMiddlewareClient } from '@supabase/auth-helpers-nextjs'
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
+import { getTenantFromHost } from './lib/tenant'
 
 export async function middleware(request: NextRequest) {
+  const host = request.headers.get('host') || ''
+  const tenant = getTenantFromHost(host)
   const res = NextResponse.next()
+  if (tenant.slug) res.headers.set('x-tenant-slug', tenant.slug)
+
   try {
     const supabase = createMiddlewareClient({ req: request, res })
     const { data: { session } } = await supabase.auth.getSession()
@@ -21,7 +26,7 @@ export async function middleware(request: NextRequest) {
       }
     }
   } catch {
-    // pass through when Supabase is not configured (e.g. CI/E2E without real credentials)
+    // pass through
   }
   return res
 }

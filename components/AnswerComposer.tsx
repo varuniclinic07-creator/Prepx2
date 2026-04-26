@@ -4,6 +4,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { createMainsAttempt, getMainsAttempts } from '@/lib/supabase';
 import { supabase } from '@/lib/supabase';
 import type { MainsScores } from '@/lib/mains-evaluator';
+import { awardCoins } from '@/lib/coins';
 
 interface MainsAttempt {
   id: string;
@@ -92,6 +93,7 @@ export function AnswerComposer({ topicId, prompt }: { topicId: string; prompt: s
           word_count: words,
           duration_seconds: timer,
         });
+        await awardCoins(userId, 100, 'essay_submission', `essay-${topicId}-${Date.now()}`);
         await loadHistory();
       }
     } catch (e: any) {

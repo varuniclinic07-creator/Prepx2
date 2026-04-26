@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { supabase, createWeakArea, createQuizAttempt } from '@/lib/supabase';
 import { transition } from '@/lib/agents/hermes';
+import { awardCoins } from '@/lib/coins';
 
 export function QuizComponent({ quizId, questions }: { quizId: string; questions: any[] }) {
   const [answers, setAnswers] = useState<Record<string, string>>({});
@@ -27,10 +28,19 @@ export function QuizComponent({ quizId, questions }: { quizId: string; questions
       await createQuizAttempt(userId, quizId, answers, { silly: 0, concept: 0, time: 0 });
       await transition(userId, 'feedback', { quizId });
       for (const q of questions) {
-        if (answers[q.id] !== q.correct_option) {
+        if (answers[q.id] === q.correct_option) {
+          // AC: +5 coins per correct answer
+          await awardCoins(userId, 5, 'quiz_correct', `quiz-${quizId}-q-${q.id}`);
+        } else {
           await createWeakArea(userId, quizId.split('-')[0] || 'topic-001', 'concept', 3);
         }
       }
+      // F1.5: Auto-trigger rank prediction on significant activity
+      fetch('/api/rank/predict', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ user_id: userId }),
+      }).catch(() => {});
     }
   };
 

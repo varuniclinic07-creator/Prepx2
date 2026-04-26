@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import Link from 'next/link';
 import { supabase } from '@/lib/supabase';
 
 interface Plan {
@@ -167,6 +168,16 @@ export default function PricingPage() {
             </button>
           </div>
         ))}
+      </div>
+      <div className="text-center pt-4">
+        <Link href="/isa" className="text-sm text-emerald-400 hover:text-emerald-300 underline underline-offset-4">
+          Vijay Guarantee — Pay ₹0 upfront →
+        </Link>
+      </div>
+      <div className="text-center pt-2">
+        <Link href="/tutors" className="text-sm text-emerald-400 hover:text-emerald-300 underline underline-offset-4">
+          AI Teacher Marketplace →
+        </Link>
       </div>
     </div>
   );

@@ -1,0 +1,128 @@
+# =============================================================================
+# PrepX Docker Compose — Development + ComfyUI Services
+# =============================================================================
+# Usage: docker compose up -d
+# Stops: docker compose down
+# =============================================================================
+
+version: "3.8"
+
+services:
+  # -------------------------------------------------------------------------
+  # PrepX App (Next.js + React)
+  # -------------------------------------------------------------------------
+  prepx:
+    container_name: prepx-app
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+    env_file:
+      - .env.local
+    depends_on:
+      - postgres
+      - redis
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:3000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+  # -------------------------------------------------------------------------
+  # PostgreSQL (Supabase replacement for local dev)
+  # -------------------------------------------------------------------------
+  postgres:
+    container_name: prepx-postgres
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: prepx
+      POSTGRES_PASSWORD: prepx_password
+      POSTGRES_DB: prepx
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./supabase/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql
+      - ./supabase/seed.sql:/docker-entrypoint-initdb.d/02-seed.sql
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U prepx -d prepx"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # -------------------------------------------------------------------------
+  # pgAdmin (optional — database GUI)
+  # -------------------------------------------------------------------------
+  pgadmin:
+    container_name: prepx-pgadmin
+    image: dpage/pgadmin4:latest
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@prepx.ai
+      PGADMIN_DEFAULT_PASSWORD: admin
+      PGADMIN_CONFIG_SERVER_MODE: "False"
+    ports:
+      - "5050:80"
+    depends_on:
+      - postgres
+    restart: unless-stopped
+
+  # -------------------------------------------------------------------------
+  # Redis ( caching + Battle Royale leaderboard )
+  # -------------------------------------------------------------------------
+  redis:
+    container_name: prepx-redis
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+  # -------------------------------------------------------------------------
+  # ComfyUI + LTX2.3 Video Generation (Optional — requires GPU)
+  # -------------------------------------------------------------------------
+  # NOTE: Remove the 'deploy' section below if you don't have a GPU.
+  # ComfyUI will still run on CPU but video generation will be very slow.
+  # -------------------------------------------------------------------------
+  comfyui:
+    container_name: prepx-comfyui
+    image: comfyanonymous/comfyui:latest
+    ports:
+      - "8188:8188"
+    volumes:
+      - comfyui_models:/app/models
+      - comfyui_output:/app/output
+      - ./scripts/comfyui-workflows:/app/user/default/workflows
+    environment:
+      - COMFYUI_ENABLE_CORS=True
+    restart: unless-stopped
+    # GPU configuration (remove if no GPU available)
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices:
+    #         - driver: nvidia
+    #           count: 1
+    #           capabilities: [gpu]
+
+# -------------------------------------------------------------------------
+# Named Volumes
+# -------------------------------------------------------------------------
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+  comfyui_models:
+    driver: local
+  comfyui_output:
+    driver: local
