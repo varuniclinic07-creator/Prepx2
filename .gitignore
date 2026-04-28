@@ -44,3 +44,9 @@ dist/
 .a0proj/variables.env
 .env.example
 .a0proj/memory/
+
+# BMAD skill template duplicates (kept in .claude/ only)
+.agent/
+.agents/
+.cline/
+.kiro/

@@ -1,4 +1,4 @@
-import { supabase } from './supabase';
+import type { SupabaseClient } from '@supabase/supabase-js';
 import { awardCoins } from './coins';
 
 export interface RoyaleEvent {
@@ -21,7 +21,7 @@ export interface RoyaleParticipant {
   score: number;
 }
 
-export async function createEvent(eventStart: string, questionCount = 20, prizePool = 1000, quizId?: string) {
+export async function createEvent(supabase: SupabaseClient, eventStart: string, questionCount = 20, prizePool = 1000, quizId?: string) {
   const { data, error } = await supabase
     .from('battle_royale_events')
     .insert({ event_start: eventStart, status: 'scheduled', question_count: questionCount, prize_pool: prizePool, quiz_id: quizId })
@@ -31,7 +31,7 @@ export async function createEvent(eventStart: string, questionCount = 20, prizeP
   return data as RoyaleEvent;
 }
 
-export async function joinEvent(eventId: string, userId: string) {
+export async function joinEvent(supabase: SupabaseClient, eventId: string, userId: string) {
   const { data: existing } = await supabase
     .from('battle_royale_participants')
     .select('id')
@@ -50,6 +50,7 @@ export async function joinEvent(eventId: string, userId: string) {
 }
 
 export async function submitAnswer(
+  supabase: SupabaseClient,
   eventId: string,
   userId: string,
   _questionId: string,
@@ -84,7 +85,7 @@ export async function submitAnswer(
   return { eliminated: false, correct: true, score: newScore };
 }
 
-export async function getLeaderboard(eventId: string) {
+export async function getLeaderboard(supabase: SupabaseClient, eventId: string) {
   const { data } = await supabase
     .from('battle_royale_participants')
     .select('user_id, joined_at, eliminated_at, score, last_answer_correct')
@@ -94,12 +95,12 @@ export async function getLeaderboard(eventId: string) {
   return data || [];
 }
 
-export async function getEvent(eventId: string): Promise<RoyaleEvent | null> {
+export async function getEvent(supabase: SupabaseClient, eventId: string): Promise<RoyaleEvent | null> {
   const { data } = await supabase.from('battle_royale_events').select('*').eq('id', eventId).single();
   return data as RoyaleEvent | null;
 }
 
-export async function getActiveEvents(): Promise<RoyaleEvent[]> {
+export async function getActiveEvents(supabase: SupabaseClient): Promise<RoyaleEvent[]> {
   const { data } = await supabase
     .from('battle_royale_events')
     .select('*')
@@ -108,11 +109,11 @@ export async function getActiveEvents(): Promise<RoyaleEvent[]> {
   return (data as RoyaleEvent[]) || [];
 }
 
-export async function markEventLive(eventId: string) {
+export async function markEventLive(supabase: SupabaseClient, eventId: string) {
   return supabase.from('battle_royale_events').update({ status: 'live' }).eq('id', eventId);
 }
 
-export async function markEventCompleted(eventId: string) {
+export async function markEventCompleted(supabase: SupabaseClient, eventId: string) {
   const { data } = await supabase
     .from('battle_royale_participants')
     .select('user_id')
@@ -123,7 +124,7 @@ export async function markEventCompleted(eventId: string) {
     .single();
 
   if (data?.user_id) {
-    await awardCoins(data.user_id, 1000, 'battle_royale_winner', `br-win-${eventId}`);
+    await awardCoins(supabase, data.user_id, 1000, 'battle_royale_winner', `br-win-${eventId}`);
   }
 
   return supabase.from('battle_royale_events').update({ status: 'completed' }).eq('id', eventId);

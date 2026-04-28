@@ -20,7 +20,7 @@ export async function POST(req: Request) {
     const { data: opponent } = await supabase.from('users').select('id').eq('email', opponent_email).single();
     if (!opponent) return NextResponse.json({ error: 'Opponent not found' }, { status: 404 });
 
-    const spendInitiator = await spendCoins(user.id, wager_coins, 'battle_wager_create');
+    const spendInitiator = await spendCoins(supabase, user.id, wager_coins, 'battle_wager_create');
     if (spendInitiator !== 'ok') return NextResponse.json({ error: 'Insufficient coins' }, { status: 400 });
 
     const { data: battle } = await supabase.from('streak_battles').insert({

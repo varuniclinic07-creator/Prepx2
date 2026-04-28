@@ -24,7 +24,7 @@ export function TopicViewer({ topic }: { topic: { id: string; title: string; con
     async function markStudying() {
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
-        await transition(user.id, 'studying', { topicId: topic.id });
+        await transition(supabase, user.id, 'studying', { topicId: topic.id });
       }
     }
     markStudying();

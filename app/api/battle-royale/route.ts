@@ -23,29 +23,29 @@ export async function POST(request: Request) {
       case 'create': {
         const { data: profile } = await supabase.from('users').select('role').eq('id', user.id).single();
         if (profile?.role !== 'admin') return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-        const event = await createEvent(String(body.event_start || new Date().toISOString()), Number(body.question_count), Number(body.prize_pool), String(body.quiz_id));
+        const event = await createEvent(supabase, String(body.event_start || new Date().toISOString()), Number(body.question_count), Number(body.prize_pool), String(body.quiz_id));
         return NextResponse.json({ event_id: event.id });
       }
       case 'join': {
-        const participant = await joinEvent(String(body.event_id), user.id);
+        const participant = await joinEvent(supabase, String(body.event_id), user.id);
         return NextResponse.json({ participant_id: participant.id });
       }
       case 'answer': {
         const answerText = String(body.answer || '');
         if (answerText.length > 10000) return NextResponse.json({ error: 'Input too long. Max 10,000 chars.' }, { status: 413 });
-        const result = await submitAnswer(String(body.event_id), user.id, String(body.question_id), answerText, String(body.correct_option || ''));
+        const result = await submitAnswer(supabase, String(body.event_id), user.id, String(body.question_id), answerText, String(body.correct_option || ''));
         return NextResponse.json(result);
       }
       case 'live': {
         const { data: profile } = await supabase.from('users').select('role').eq('id', user.id).single();
         if (profile?.role !== 'admin') return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-        await markEventLive(String(body.event_id));
+        await markEventLive(supabase, String(body.event_id));
         return NextResponse.json({ ok: true });
       }
       case 'complete': {
         const { data: profile } = await supabase.from('users').select('role').eq('id', user.id).single();
         if (profile?.role !== 'admin') return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-        await markEventCompleted(String(body.event_id));
+        await markEventCompleted(supabase, String(body.event_id));
         return NextResponse.json({ ok: true });
       }
       default:
@@ -67,15 +67,15 @@ export async function GET(request: Request) {
     const type = searchParams.get('type');
 
     if (type === 'active') {
-      const events = await getActiveEvents();
+      const events = await getActiveEvents(supabase);
       return NextResponse.json({ events });
     }
     if (type === 'status' && eventId) {
-      const ev = await getEvent(eventId);
+      const ev = await getEvent(supabase, eventId);
       return NextResponse.json({ event: ev });
     }
     if (type === 'leaderboard' && eventId) {
-      const board = await getLeaderboard(eventId);
+      const board = await getLeaderboard(supabase, eventId);
       return NextResponse.json({ leaderboard: board });
     }
     return NextResponse.json({ error: 'Missing params' }, { status: 400 });

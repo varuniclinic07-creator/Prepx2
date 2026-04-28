@@ -1,4 +1,4 @@
-import { supabase } from './supabase';
+import type { SupabaseClient } from '@supabase/supabase-js';
 import { aiChat } from './ai-router';
 
 export interface RankPrediction {
@@ -9,8 +9,7 @@ export interface RankPrediction {
   days_to_cutoff: number;
 }
 
-export async function getRankPrediction(userId: string): Promise<RankPrediction> {
-  // Gather user stats
+export async function getRankPrediction(supabase: SupabaseClient, userId: string): Promise<RankPrediction> {
   const [{ data: attempts }, { data: answers }, { data: plans }, { data: weakAreas }, { data: profile }] = await Promise.all([
     supabase.from('quiz_attempts').select('*').eq('user_id', userId),
     supabase.from('mains_attempts').select('*').eq('user_id', userId),

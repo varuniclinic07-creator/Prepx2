@@ -5,8 +5,12 @@ import OpenAI from 'openai';
 // Tier 1: 9router | Tier 2: Ollama | Tier 3: Groq (7 keys) | Tier 4: Kilo (4 keys) | Tier 5: NVIDIA
 // ────────────────────────────────
 
-// Helper to load env with fallback
-const env = (k: string, d?: string) => process.env[k] || d || '';
+import { requireEnv, optionalEnv } from './env';
+
+const env = (k: string, d?: string) => {
+  if (d !== undefined) return optionalEnv(k, d);
+  return requireEnv(k);
+};
 
 // ── Tier 1: 9router (Primary) ──
 function nineRouter(): { client: OpenAI; model: string; keyId: string } {
@@ -28,8 +32,8 @@ function ollama(): { client: OpenAI; model: string; keyId: string } {
 
 // ── Tier 3: Groq (7 keys, round-robin) ──
 const GROQ_KEYS = [
-  env('GROQ_API_KEY_1'), env('GROQ_API_KEY_2'), env('GROQ_API_KEY_3'),
-  env('GROQ_API_KEY_4'), env('GROQ_API_KEY_5'), env('GROQ_API_KEY_6'), env('GROQ_API_KEY_7'),
+  optionalEnv('GROQ_API_KEY_1', ''), optionalEnv('GROQ_API_KEY_2', ''), optionalEnv('GROQ_API_KEY_3', ''),
+  optionalEnv('GROQ_API_KEY_4', ''), optionalEnv('GROQ_API_KEY_5', ''), optionalEnv('GROQ_API_KEY_6', ''), optionalEnv('GROQ_API_KEY_7', ''),
 ].filter(Boolean);
 let groqIndex = 0;
 function groqInstance(): { client: OpenAI; model: string; keyId: string } {
@@ -45,7 +49,7 @@ function groqInstance(): { client: OpenAI; model: string; keyId: string } {
 
 // ── Tier 4: Kilo AI (4 keys, 5 models, round-robin) ──
 const KILO_KEYS = [
-  env('KILO_API_KEY_1'), env('KILO_API_KEY_2'), env('KILO_API_KEY_3'), env('KILO_API_KEY_4'),
+  optionalEnv('KILO_API_KEY_1', ''), optionalEnv('KILO_API_KEY_2', ''), optionalEnv('KILO_API_KEY_3', ''), optionalEnv('KILO_API_KEY_4', ''),
 ].filter(Boolean);
 const KILO_MODELS = [
   env('KILO_MODEL_1', 'kilo-auto/free'), env('KILO_MODEL_2', 'openrouter/free'),

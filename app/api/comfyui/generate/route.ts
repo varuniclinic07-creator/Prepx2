@@ -1,6 +1,17 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase-server';
 import { getSettings, queuePrompt } from '@/lib/comfyui-client';
+import { z } from 'zod';
+
+const GenerateSchema = z.object({
+  prompt: z.string().min(1).max(500),
+  astra_script_id: z.string().uuid().optional(),
+  width: z.number().int().min(64).max(2048).optional(),
+  height: z.number().int().min(64).max(2048).optional(),
+  steps: z.number().int().min(1).max(150).optional(),
+  cfg_scale: z.number().min(0).max(30).optional(),
+  seed: z.number().int().optional(),
+});
 
 // POST /api/comfyui/generate — queue AI video generation
 export async function POST(request: Request) {
@@ -10,14 +21,11 @@ export async function POST(request: Request) {
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
     const body = await request.json().catch(() => ({}));
-    const { prompt, astra_script_id, width, height, steps, cfg_scale, seed } = body;
-
-    if (!prompt || typeof prompt !== 'string') {
-      return NextResponse.json({ error: 'Missing prompt' }, { status: 400 });
+    const parsed = GenerateSchema.safeParse(body);
+    if (!parsed.success) {
+      return NextResponse.json({ error: 'Invalid input', details: parsed.error.flatten().fieldErrors }, { status: 400 });
     }
-    if (prompt.length > 500) {
-      return NextResponse.json({ error: 'Prompt too long. Max 500 chars.' }, { status: 413 });
-    }
+    const { prompt, astra_script_id, width, height, steps, cfg_scale, seed } = parsed.data;
 
     const settings = await getSettings(supabase);
     if (!settings || !settings.enabled) {

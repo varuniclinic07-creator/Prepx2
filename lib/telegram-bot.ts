@@ -1,9 +1,9 @@
 import { supabase } from './supabase';
+import { optionalEnv } from './env';
 
-const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN || '';
+const BOT_TOKEN = optionalEnv('TELEGRAM_BOT_TOKEN', '');
 
 async function sendTelegram(chatId: string, text: string) {
-  if (!BOT_TOKEN) return;
   try {
     await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
       method: 'POST',

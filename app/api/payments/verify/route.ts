@@ -1,6 +1,13 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase-server';
 import crypto from 'crypto';
+import { z } from 'zod';
+
+const VerifySchema = z.object({
+  razorpay_order_id: z.string().min(1).max(200),
+  razorpay_payment_id: z.string().min(1).max(200),
+  razorpay_signature: z.string().min(1).max(500),
+});
 
 export async function POST(request: Request) {
   try {
@@ -9,12 +16,14 @@ export async function POST(request: Request) {
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
     const body = await request.json().catch(() => ({}));
-    const { razorpay_order_id, razorpay_payment_id, razorpay_signature } = body;
-    if (!razorpay_order_id || !razorpay_payment_id || !razorpay_signature) {
-      return NextResponse.json({ error: 'Missing params' }, { status: 400 });
+    const parsed = VerifySchema.safeParse(body);
+    if (!parsed.success) {
+      return NextResponse.json({ error: 'Invalid input', details: parsed.error.flatten().fieldErrors }, { status: 400 });
     }
+    const { razorpay_order_id, razorpay_payment_id, razorpay_signature } = parsed.data;
 
-    const secret = process.env.RAZORPAY_KEY_SECRET || '';
+    const secret = process.env.RAZORPAY_KEY_SECRET;
+    if (!secret) return NextResponse.json({ error: 'Payment verification not configured' }, { status: 503 });
     const expected = crypto.createHmac('sha256', secret)
       .update(`${razorpay_order_id}|${razorpay_payment_id}`)
       .digest('hex');

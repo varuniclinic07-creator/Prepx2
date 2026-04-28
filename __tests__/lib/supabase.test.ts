@@ -1,4 +1,10 @@
 import { describe, it, expect, vi } from 'vitest'
+
+vi.hoisted(() => {
+  process.env.NEXT_PUBLIC_SUPABASE_URL = 'http://localhost:54321'
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = 'test-anon-key'
+})
+
 import { getTopic, getQuizByTopic, createWeakArea, getWeakAreas } from '@/lib/supabase'
 
 vi.mock('@supabase/supabase-js', () => ({

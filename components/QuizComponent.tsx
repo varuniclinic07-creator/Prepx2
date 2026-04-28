@@ -2,8 +2,6 @@
 
 import { useState } from 'react';
 import { supabase, createWeakArea, createQuizAttempt } from '@/lib/supabase';
-import { transition } from '@/lib/agents/hermes';
-import { awardCoins } from '@/lib/coins';
 
 export function QuizComponent({ quizId, questions }: { quizId: string; questions: any[] }) {
   const [answers, setAnswers] = useState<Record<string, string>>({});
@@ -26,12 +24,13 @@ export function QuizComponent({ quizId, questions }: { quizId: string; questions
     const userId = (await supabase.auth.getUser()).data.user?.id;
     if (userId) {
       await createQuizAttempt(userId, quizId, answers, { silly: 0, concept: 0, time: 0 });
-      await transition(userId, 'feedback', { quizId });
+      fetch('/api/coins/award', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ amount: correct * 5, reason: 'quiz_correct', idempotency_key: `quiz-${quizId}-${userId}` }),
+      }).catch(() => {});
       for (const q of questions) {
-        if (answers[q.id] === q.correct_option) {
-          // AC: +5 coins per correct answer
-          await awardCoins(userId, 5, 'quiz_correct', `quiz-${quizId}-q-${q.id}`);
-        } else {
+        if (answers[q.id] !== q.correct_option) {
           await createWeakArea(userId, quizId.split('-')[0] || 'topic-001', 'concept', 3);
         }
       }

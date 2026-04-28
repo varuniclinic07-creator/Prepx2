@@ -51,7 +51,7 @@ export default function OnboardingPage() {
       if (user) {
         await supabase.from('users').update({ baseline_score: correct, preferred_language: prefLanguage }).eq('id', user.id);
         await supabase.from('activity_log').insert({ user_id: user.id, event_type: 'diagnostic_completed', metadata: { score: correct, max: 5, language: prefLanguage } });
-        await createSession(user.id);
+        await createSession(supabase, user.id);
       }
     } catch {
       // pass through for E2E / CI without real Supabase

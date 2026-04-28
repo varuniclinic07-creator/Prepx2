@@ -1,5 +1,5 @@
 import { createClient } from '@/lib/supabase-server';
-import { awardCoins } from './coins';
+import { awardCoins } from '@/lib/coins';
 
 export type OfficerRank = 'ASO' | 'Deputy Collector' | 'Collector' | 'Secretary' | 'Cabinet Secretary';
 
@@ -73,7 +73,7 @@ export async function checkAndPromoteUser(userId: string): Promise<{ promoted: b
   }
 
   // Award 1000 coins per rank-up
-  await awardCoins(userId, 1000, `Promoted to ${nextRank}`, `rankup-${nextRank}-${Date.now()}`);
+  await awardCoins(supabase, userId, 1000, `Promoted to ${nextRank}`, `rankup-${nextRank}-${Date.now()}`);
 
   // Send notification
   await supabase.from('user_notifications').insert({

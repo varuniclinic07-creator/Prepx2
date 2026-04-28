@@ -23,7 +23,7 @@ export async function POST(req: Request) {
       if (profile?.role !== 'admin') return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
-    const prediction = await getRankPrediction(targetUserId);
+    const prediction = await getRankPrediction(supabase, targetUserId);
     await supabase.from('user_predictions').insert({
       user_id: targetUserId,
       predicted_rank_min: prediction.predicted_rank_min,

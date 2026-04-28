@@ -5,19 +5,35 @@ import { getTenantFromHost } from './lib/tenant'
 
 type RateLimitEntry = { count: number; reset: number };
 const rateMap = new Map<string, RateLimitEntry>();
+const MAX_RATE_MAP_SIZE = 10000;
+let lastCleanup = Date.now();
 
-function checkRateLimit(key: string, max: number): { allowed: boolean; retryAfter?: number } {
+function cleanupRateMap() {
   const now = Date.now();
+  if (now - lastCleanup < 30000) return;
+  lastCleanup = now;
+  for (const [key, entry] of rateMap) {
+    if (now > entry.reset) rateMap.delete(key);
+  }
+}
+
+function checkRateLimit(key: string, max: number): { allowed: boolean; retryAfter?: number; remaining: number } {
+  const now = Date.now();
+  cleanupRateMap();
+  if (rateMap.size >= MAX_RATE_MAP_SIZE) {
+    const oldest = rateMap.keys().next().value;
+    if (oldest) rateMap.delete(oldest);
+  }
   const entry = rateMap.get(key);
   if (!entry || now > entry.reset) {
     rateMap.set(key, { count: 1, reset: now + 60000 });
-    return { allowed: true };
+    return { allowed: true, remaining: max - 1 };
   }
   if (entry.count >= max) {
-    return { allowed: false, retryAfter: Math.ceil((entry.reset - now) / 1000) };
+    return { allowed: false, retryAfter: Math.ceil((entry.reset - now) / 1000), remaining: 0 };
   }
   entry.count += 1;
-  return { allowed: true };
+  return { allowed: true, remaining: max - entry.count };
 }
 
 export async function middleware(request: NextRequest) {
@@ -36,11 +52,11 @@ export async function middleware(request: NextRequest) {
       path.startsWith('/api/mains') ||
       path.startsWith('/api/essay-colosseum')
     ) max = 100
-    const { allowed, retryAfter } = checkRateLimit(`${ip}:${path}`, max)
+    const { allowed, retryAfter, remaining } = checkRateLimit(`${ip}:${path}`, max)
     if (!allowed) {
       return new NextResponse(JSON.stringify({ error: 'Too many requests' }), {
         status: 429,
-        headers: { 'Content-Type': 'application/json', 'Retry-After': String(retryAfter) },
+        headers: { 'Content-Type': 'application/json', 'Retry-After': String(retryAfter), 'X-RateLimit-Limit': String(max), 'X-RateLimit-Remaining': '0' },
       })
     }
   }

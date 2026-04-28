@@ -21,9 +21,6 @@ export async function POST(req: Request) {
     const { data: contract } = await supabase.from('isa_contracts').select('*').eq('id', contractId).single();
     if (!contract || contract.user_id !== user.id) return NextResponse.json({ error: 'Not found' }, { status: 404 });
 
-    const { data: existing } = await supabase.from('isa_payments').select('id').eq('contract_id', contractId).eq('milestone', milestone).single();
-    if (existing) return NextResponse.json({ error: 'Payment already initiated' }, { status: 409 });
-
     const amount = MILESTONE_AMOUNTS[milestone];
     const keyId = process.env.RAZORPAY_KEY_ID;
     const keySecret = process.env.RAZORPAY_KEY_SECRET;
@@ -37,7 +34,11 @@ export async function POST(req: Request) {
     const order = await res.json();
     if (!res.ok || !order.id) return NextResponse.json({ error: order.error?.description || 'Razorpay error' }, { status: 500 });
 
-    await supabase.from('isa_payments').insert({ contract_id: contractId, milestone, amount, status: 'pending', razorpay_order_id: order.id });
+    const { error: insertError } = await supabase.from('isa_payments').insert({ contract_id: contractId, milestone, amount, status: 'pending', razorpay_order_id: order.id });
+    if (insertError) {
+      if (insertError.code === '23505') return NextResponse.json({ error: 'Payment already initiated for this milestone' }, { status: 409 });
+      return NextResponse.json({ error: insertError.message }, { status: 500 });
+    }
     await supabase.from('user_notifications').insert({
       user_id: user.id, title: `ISA ${milestone} Milestone`, message: `Your payment of ₹${amount} for ${milestone} is ready. Complete it in your dashboard.`
     });

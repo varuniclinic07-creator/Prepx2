@@ -1,11 +1,6 @@
-import { supabase } from './supabase';
+import type { SupabaseClient } from '@supabase/supabase-js';
 
-// ── Coins Economy ──
-// AC-01: awardCoins prevents duplicate transactions via idempotency key
-// AC-02: getBalance returns current coins for a user
-// AC-03: spendCoins deducts only if sufficient balance
-
-export async function getBalance(userId: string): Promise<number> {
+export async function getBalance(supabase: SupabaseClient, userId: string): Promise<number> {
   const { data } = await supabase
     .from('user_balances')
     .select('coins')
@@ -14,7 +9,7 @@ export async function getBalance(userId: string): Promise<number> {
   return data?.coins ?? 0;
 }
 
-export async function getTransactions(userId: string, limit = 10) {
+export async function getTransactions(supabase: SupabaseClient, userId: string, limit = 10) {
   const { data } = await supabase
     .from('coin_transactions')
     .select('id,amount,reason,created_at')
@@ -25,6 +20,7 @@ export async function getTransactions(userId: string, limit = 10) {
 }
 
 export async function awardCoins(
+  supabase: SupabaseClient,
   userId: string,
   amount: number,
   reason: string,
@@ -32,7 +28,6 @@ export async function awardCoins(
 ): Promise<boolean> {
   if (amount <= 0) return false;
 
-  // Check if already processed (AC-04: Duplicate transactions prevented by idempotency key)
   const { data: existing } = await supabase
     .from('coin_transactions')
     .select('id')
@@ -41,7 +36,6 @@ export async function awardCoins(
     .single();
   if (existing) return false;
 
-  // Insert transaction
   const { error: insertErr } = await supabase.from('coin_transactions').insert({
     user_id: userId,
     amount,
@@ -50,7 +44,6 @@ export async function awardCoins(
   });
   if (insertErr) return false;
 
-  // Upsert balance
   const { data: balance } = await supabase
     .from('user_balances')
     .select('coins,lifetime_earned')
@@ -77,34 +70,20 @@ export async function awardCoins(
 }
 
 export async function spendCoins(
+  supabase: SupabaseClient,
   userId: string,
   amount: number,
   reason: string
 ): Promise<'ok' | 'insufficient' | 'error'> {
   if (amount <= 0) return 'error';
 
-  const { data: balance } = await supabase
-    .from('user_balances')
-    .select('coins')
-    .eq('user_id', userId)
-    .single();
-
-  const current = balance?.coins ?? 0;
-  if (current < amount) return 'insufficient';
-
-  // Insert spend transaction with negative amount
-  const { error: insertErr } = await supabase.from('coin_transactions').insert({
-    user_id: userId,
-    amount: -amount,
-    reason,
-    idempotency_key: `spend-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+  const { data, error } = await supabase.rpc('spend_coins', {
+    p_user_id: userId,
+    p_amount: amount,
+    p_reason: reason,
   });
-  if (insertErr) return 'error';
 
-  await supabase
-    .from('user_balances')
-    .update({ coins: current - amount })
-    .eq('user_id', userId);
-
-  return 'ok';
+  if (error) return 'error';
+  const newBalance = data as number;
+  return newBalance >= 0 ? 'ok' : 'insufficient';
 }

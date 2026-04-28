@@ -50,10 +50,11 @@ export default function BattleRoyalePage() {
   useEffect(() => { fetchEvents(); }, [fetchEvents]);
   useEffect(() => {
     const unsub = subscribeToAll(supabase, 'battle_royale_events', (payload) => {
+      const newData = payload.new as unknown as EventData;
       if (payload.eventType === 'INSERT') {
-        setEvents(prev => [...prev, payload.new as EventData]);
+        setEvents(prev => [...prev, newData]);
       } else if (payload.eventType === 'UPDATE') {
-        setEvents(prev => prev.map(e => e.id === payload.new.id ? payload.new as EventData : e));
+        setEvents(prev => prev.map(e => e.id === newData.id ? newData : e));
       }
     });
     return unsub;
@@ -63,7 +64,7 @@ export default function BattleRoyalePage() {
   useEffect(() => {
     if (!currentEvent?.id) return;
     const unsub = subscribeToTable(supabase, 'battle_royale_events', `id=eq.${currentEvent.id}`, (payload) => {
-      const ev = payload.new as EventData;
+      const ev = payload.new as unknown as EventData;
       setCurrentEvent(ev);
       if (ev.status === 'completed') {
         checkIfWinner(ev.id);

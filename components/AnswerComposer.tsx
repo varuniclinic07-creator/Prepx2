@@ -4,7 +4,6 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { createMainsAttempt, getMainsAttempts } from '@/lib/supabase';
 import { supabase } from '@/lib/supabase';
 import type { MainsScores } from '@/lib/mains-evaluator';
-import { awardCoins } from '@/lib/coins';
 
 interface MainsAttempt {
   id: string;
@@ -93,7 +92,11 @@ export function AnswerComposer({ topicId, prompt }: { topicId: string; prompt: s
           word_count: words,
           duration_seconds: timer,
         });
-        await awardCoins(userId, 100, 'essay_submission', `essay-${topicId}-${Date.now()}`);
+        fetch('/api/coins/award', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ amount: 100, reason: 'essay_submission', idempotency_key: `essay-${topicId}-${Date.now()}` }),
+        }).catch(() => {});
         await loadHistory();
       }
     } catch (e: any) {

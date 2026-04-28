@@ -1,4 +1,4 @@
-import { supabase } from '../supabase';
+import type { SupabaseClient } from '@supabase/supabase-js';
 
 export const HERMES_STATES = [
   'idle','planning','ready','studying','quizzing','feedback','adapting','done'
@@ -17,7 +17,7 @@ export interface HermesContext {
   last_activity_at: string;
 }
 
-export async function createSession(userId: string): Promise<HermesContext> {
+export async function createSession(supabase: SupabaseClient, userId: string): Promise<HermesContext> {
   const ctx: HermesContext = {
     user_id: userId,
     session_state: 'idle',
@@ -28,6 +28,7 @@ export async function createSession(userId: string): Promise<HermesContext> {
 }
 
 export async function transition(
+  supabase: SupabaseClient,
   userId: string,
   newState: HermesState,
   payload?: Record<string,any>
@@ -43,10 +44,9 @@ export async function transition(
   if (payload?.dailyPlanId) update.daily_plan_id = payload.dailyPlanId;
 
   await supabase.from('user_sessions').update(update).eq('user_id', userId);
-  console.log(`[Hermes] -> ${newState}`);
 }
 
-export async function resumeSession(userId: string): Promise<HermesContext | null> {
+export async function resumeSession(supabase: SupabaseClient, userId: string): Promise<HermesContext | null> {
   const { data } = await supabase.from('user_sessions').select('*').eq('user_id', userId).single();
   if (!data) return null;
   return data as unknown as HermesContext;
@@ -67,6 +67,7 @@ export async function getAllowedActions(state: HermesState): Promise<string[]> {
 }
 
 export async function spawnAgent(
+  supabase: SupabaseClient,
   agentType: 'study'|'write'|'speak'|'quiz',
   task: Record<string,any>
 ) {

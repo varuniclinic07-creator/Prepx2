@@ -1,5 +1,4 @@
 import { NextResponse } from 'next/server';
-import { spendCoins } from '@/lib/coins';
 import { createClient } from '@/lib/supabase-server';
 import { z } from 'zod';
 
@@ -17,16 +16,18 @@ export async function POST(req: Request) {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-    const { data: battle } = await supabase.from('streak_battles').select('*').eq('id', battle_id).single();
+    const { data: battle } = await supabase.from('streak_battles').select('wager_coins').eq('id', battle_id).single();
     if (!battle) return NextResponse.json({ error: 'Battle not found' }, { status: 404 });
-    if (battle.status !== 'pending') return NextResponse.json({ error: 'Battle already started' }, { status: 400 });
-    if (battle.initiator_id === user.id) return NextResponse.json({ error: 'Cannot accept own battle' }, { status: 400 });
 
-    const spendResult = await spendCoins(user.id, battle.wager_coins, 'battle_wager_accept');
-    if (spendResult !== 'ok') return NextResponse.json({ error: 'Insufficient coins' }, { status: 400 });
+    const { data: accepted, error } = await supabase.rpc('accept_battle', {
+      p_battle_id: battle_id,
+      p_user_id: user.id,
+      p_wager: battle.wager_coins || 0,
+    });
 
-    await supabase.from('battle_participants').insert({ battle_id, user_id: user.id, current_streak: 0, best_streak: 0 });
-    await supabase.from('streak_battles').update({ status: 'active', created_at: new Date().toISOString() }).eq('id', battle_id);
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    if (!accepted) return NextResponse.json({ error: 'Cannot accept battle — already active, own battle, or insufficient coins' }, { status: 400 });
+
     return NextResponse.json({ ok: true });
   } catch (err: any) {
     return NextResponse.json({ error: err?.message || 'Internal error' }, { status: 500 });

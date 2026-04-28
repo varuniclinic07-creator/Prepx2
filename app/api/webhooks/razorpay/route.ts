@@ -2,16 +2,20 @@ import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import crypto from 'crypto';
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL || '',
-  process.env.SUPABASE_SERVICE_ROLE_KEY || ''
-);
+function getServiceClient() {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!url || !key) throw new Error('Missing SUPABASE_URL or SERVICE_ROLE_KEY');
+  return createClient(url, key);
+}
 
 export async function POST(req: Request) {
-  const secret = process.env.RAZORPAY_WEBHOOK_SECRET || '';
+  const secret = process.env.RAZORPAY_WEBHOOK_SECRET;
+  if (!secret) return NextResponse.json({ received: false, error: 'Webhook secret not configured' }, { status: 500 });
+
   const sig = req.headers.get('x-razorpay-signature');
-  if (!sig || !secret) {
-    return NextResponse.json({ received: false, error: 'Missing signature or secret' }, { status: 400 });
+  if (!sig) {
+    return NextResponse.json({ received: false, error: 'Missing signature' }, { status: 400 });
   }
 
   const body = await req.text();
@@ -27,6 +31,7 @@ export async function POST(req: Request) {
   }
 
   const payload = JSON.parse(body);
+  const supabase = getServiceClient();
   try {
     if (payload.event === 'payment.captured') {
       const entity = payload.payload?.payment?.entity || {};

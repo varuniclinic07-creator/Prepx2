@@ -2,8 +2,6 @@
 
 import { useState, useEffect } from 'react';
 import { createDailyPlan, updatePlanStatus, supabase } from '@/lib/supabase';
-import { transition } from '@/lib/agents/hermes';
-import { awardCoins } from '@/lib/coins';
 import { QuizTask } from '../types';
 import { subscribeToTable } from '@/lib/realtime';
 
@@ -56,8 +54,11 @@ export function DailyPlan({ userId, initialPlan }: DailyPlanProps) {
     if (planId) {
       await updatePlanStatus(planId, allDone ? 'completed' : 'in_progress');
       if (allDone) {
-        await transition(userId, 'done', { dailyPlanId: planId });
-        await awardCoins(userId, 50, 'daily_plan_complete', `plan-${planId}`);
+        fetch('/api/coins/award', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ amount: 50, reason: 'daily_plan_complete', idempotency_key: `plan-${planId}` }),
+        }).catch(() => {});
         fetch('/api/rank/predict', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },

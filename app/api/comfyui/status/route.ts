@@ -1,6 +1,11 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase-server';
 import { getSettings, getPromptStatus } from '@/lib/comfyui-client';
+import { z } from 'zod';
+
+const StatusSchema = z.object({
+  prompt_id: z.string().min(1).max(200),
+});
 
 // POST /api/comfyui/status — poll ComfyUI prompt status
 export async function POST(request: Request) {
@@ -10,10 +15,11 @@ export async function POST(request: Request) {
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
     const body = await request.json().catch(() => ({}));
-    const { prompt_id } = body;
-    if (!prompt_id || typeof prompt_id !== 'string') {
-      return NextResponse.json({ error: 'Missing prompt_id' }, { status: 400 });
+    const parsed = StatusSchema.safeParse(body);
+    if (!parsed.success) {
+      return NextResponse.json({ error: 'Invalid input', details: parsed.error.flatten().fieldErrors }, { status: 400 });
     }
+    const { prompt_id } = parsed.data;
 
     const settings = await getSettings(supabase);
     if (!settings || !settings.enabled) {

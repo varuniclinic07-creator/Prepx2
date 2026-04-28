@@ -4,33 +4,15 @@ import { UserProfile, DailyPlan, Topic, Quiz, QuizAttempt, WeakArea } from '../t
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
 
-let supabase: SupabaseClient;
-try {
-  supabase = createClient(supabaseUrl, supabaseAnonKey, {
-    auth: { persistSession: true, autoRefreshToken: true }
-  });
-} catch {
-  // Mock client for E2E/CI without real Supabase credentials
-  const createChain = () => ({
-    eq: () => createChain(),
-    order: () => createChain(),
-    limit: () => createChain(),
-    single: () => Promise.resolve({ data: null, error: null }),
-  });
-  const mockDb = () => ({
-    select: () => createChain(),
-    insert: () => Promise.resolve({ data: null, error: null }),
-    update: () => ({ eq: () => Promise.resolve({ data: null, error: null }) }),
-    upsert: () => Promise.resolve({ data: null, error: null }),
-  });
-  supabase = {
-    from: mockDb,
-    auth: {
-      getUser: () => Promise.resolve({ data: { user: null }, error: null }),
-      getSession: () => Promise.resolve({ data: { session: null }, error: null }),
-    },
-  } as any;
+if (!supabaseUrl || !supabaseAnonKey) {
+  console.warn('Missing NEXT_PUBLIC_SUPABASE_URL or NEXT_PUBLIC_SUPABASE_ANON_KEY — Supabase calls will fail at runtime');
 }
+
+const supabase: SupabaseClient = createClient(
+  supabaseUrl || 'http://localhost:54321',
+  supabaseAnonKey || 'placeholder',
+  { auth: { persistSession: true, autoRefreshToken: true } }
+);
 
 export { supabase };
 

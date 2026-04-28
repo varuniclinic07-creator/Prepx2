@@ -16,11 +16,9 @@ export async function POST(req: Request) {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return NextResponse.json({ error: 'Login required' }, { status: 401 });
 
-    const { data: existing } = await supabase.from('tutor_subscriptions').select('id').eq('user_id', user.id).eq('tutor_id', tutorId).single();
-    if (existing) return NextResponse.json({ error: 'Already subscribed' }, { status: 409 });
-
-    const { data: tutor } = await supabase.from('ai_tutors').select('price,subscriber_count').eq('id', tutorId).single();
-    const price = tutor?.price || 499;
+    const { data: tutor } = await supabase.from('ai_tutors').select('price').eq('id', tutorId).single();
+    if (!tutor) return NextResponse.json({ error: 'Tutor not found' }, { status: 404 });
+    const price = tutor.price || 499;
     const amount = price * 100;
     const keyId = process.env.RAZORPAY_KEY_ID;
     const keySecret = process.env.RAZORPAY_KEY_SECRET;
@@ -35,8 +33,12 @@ export async function POST(req: Request) {
     if (!res.ok || !order.id) return NextResponse.json({ error: order.error?.description || 'Razorpay error' }, { status: 500 });
 
     const expires = new Date(); expires.setMonth(expires.getMonth() + 1);
-    const { data: sub } = await supabase.from('tutor_subscriptions').insert({ user_id: user.id, tutor_id: tutorId, status: 'active', expires_at: expires.toISOString() }).select().single();
-    await supabase.from('ai_tutors').update({ subscriber_count: (tutor?.subscriber_count || 0) + 1 }).eq('id', tutorId);
+    const { data: sub, error: subError } = await supabase.from('tutor_subscriptions').insert({ user_id: user.id, tutor_id: tutorId, status: 'active', expires_at: expires.toISOString() }).select().single();
+    if (subError) {
+      if (subError.code === '23505') return NextResponse.json({ error: 'Already subscribed' }, { status: 409 });
+      return NextResponse.json({ error: subError.message }, { status: 500 });
+    }
+    await supabase.rpc('increment_subscriber_count', { p_tutor_id: tutorId });
     return NextResponse.json({ orderId: order.id, amount, currency: orderPayload.currency, subscription: sub });
   } catch (err: any) {
     return NextResponse.json({ error: err?.message || 'Internal error' }, { status: 500 });

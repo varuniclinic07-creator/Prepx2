@@ -114,7 +114,7 @@ export default async function RanksPage() {
         <p className="text-sm text-slate-400 mb-3">Share your achievement</p>
         <div className="bg-slate-800 rounded-lg p-4 inline-block">
           <p className="text-lg font-bold text-slate-100">
-            🏅 I have been promoted to {current_rank} on "PrepX"
+            🏅 I have been promoted to {current_rank} on &ldquo;PrepX&rdquo;
           </p>
         </div>
       </div>

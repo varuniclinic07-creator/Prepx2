@@ -64,7 +64,7 @@ export default async function DhwaniPage() {
         </div>
       ) : (
         <div className="bg-slate-900 border border-slate-800 rounded-xl p-8 text-center">
-          <p className="text-slate-400 mb-4">Today's Daily Dhwani hasn't been generated yet.</p>
+          <p className="text-slate-400 mb-4">Today&apos;s Daily Dhwani hasn&apos;t been generated yet.</p>
           <Link
             href="/admin/content"
             className="inline-block px-4 py-2 bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-bold rounded-lg text-sm transition"

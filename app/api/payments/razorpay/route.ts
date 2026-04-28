@@ -1,5 +1,11 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase-server';
+import { z } from 'zod';
+
+const RazorpayOrderSchema = z.object({
+  item_id: z.string().min(1).max(200),
+  amount_inr: z.number().positive().max(1000000),
+});
 
 export async function POST(request: Request) {
   try {
@@ -8,16 +14,20 @@ export async function POST(request: Request) {
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
     const body = await request.json().catch(() => ({}));
-    const { item_id, amount_inr } = body;
-    if (!item_id || !amount_inr || amount_inr <= 0) {
-      return NextResponse.json({ error: 'Invalid item or amount' }, { status: 400 });
+    const parsed = RazorpayOrderSchema.safeParse(body);
+    if (!parsed.success) {
+      return NextResponse.json({ error: 'Invalid input', details: parsed.error.flatten().fieldErrors }, { status: 400 });
+    }
+    const { item_id, amount_inr } = parsed.data;
+
+    const keyId = process.env.RAZORPAY_KEY_ID;
+    const keySecret = process.env.RAZORPAY_KEY_SECRET;
+    if (!keyId || !keySecret) {
+      return NextResponse.json({ error: 'Payment gateway not configured' }, { status: 503 });
     }
 
     const Razorpay = (await import('razorpay')).default;
-    const razorpay = new Razorpay({
-      key_id: process.env.RAZORPAY_KEY_ID || '',
-      key_secret: process.env.RAZORPAY_KEY_SECRET || '',
-    });
+    const razorpay = new Razorpay({ key_id: keyId, key_secret: keySecret });
 
     const order = await razorpay.orders.create({
       amount: Math.round(amount_inr * 100),

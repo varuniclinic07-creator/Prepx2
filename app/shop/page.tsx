@@ -59,8 +59,10 @@ export default function ShopPage() {
       });
       await loadScript();
 
+      const razorpayKey = process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID;
+      if (!razorpayKey) { alert('Payment gateway not configured'); return; }
       const rzp = new (window as any).Razorpay({
-        key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID || '',
+        key: razorpayKey,
         amount: data.amount,
         currency: data.currency,
         name: 'PrepX',

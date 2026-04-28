@@ -82,7 +82,7 @@ export async function POST(request: NextRequest) {
         .eq('id', match_id);
 
       if (winnerId) {
-        await awardCoins(winnerId, 500, `Essay Colosseum victory`, `essay-${match_id}`);
+        await awardCoins(supabase, winnerId, 500, `Essay Colosseum victory`, `essay-${match_id}`);
       }
 
       return NextResponse.json({ submitted: sub, verdict, match_closed: true });

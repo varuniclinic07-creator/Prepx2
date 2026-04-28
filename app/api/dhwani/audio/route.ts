@@ -1,6 +1,11 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase-server';
 import { textToSpeech } from '@/lib/ai-router';
+import { z } from 'zod';
+
+const AudioSchema = z.object({
+  text: z.string().min(1).max(4000),
+});
 
 export async function POST(request: Request) {
   try {
@@ -9,10 +14,11 @@ export async function POST(request: Request) {
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
     const body = await request.json().catch(() => ({}));
-    const { text } = body;
-    if (!text || typeof text !== 'string') {
-      return NextResponse.json({ error: 'Missing text' }, { status: 400 });
+    const parsed = AudioSchema.safeParse(body);
+    if (!parsed.success) {
+      return NextResponse.json({ error: 'Invalid input', details: parsed.error.flatten().fieldErrors }, { status: 400 });
     }
+    const { text } = parsed.data;
 
     const buffer = await textToSpeech(text.slice(0, 4000));
     const blob = new Blob([new Uint8Array(buffer)], { type: 'audio/mp3' });
