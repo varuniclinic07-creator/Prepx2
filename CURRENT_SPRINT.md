@@ -1,45 +1,73 @@
 # CURRENT_SPRINT.md
 
-**Sprint:** 12.1 — Architecture Hardening Completion
+**Sprint:** 15 — VPS Deployment Hardening
 **Started:** 2026-04-29
 **Status:** COMPLETED (awaiting commit)
 
 ---
 
-## Sprint 12 Recap (Previous Session)
+## Goal
 
-9 architecture gaps identified and fixed:
+Lock down `docker-compose.vps.yml` for production deployment. Eliminate publicly exposed admin/internal ports, password-protect Redis, force HTTPS at the edge, isolate the internal docker network, and add HTTP security headers + an honest health check.
 
-| # | Area | Before | After | Status |
-|---|------|--------|-------|--------|
-| 1 | Race Conditions | 3/10 | 10/10 | DONE |
-| 2 | Stripe Webhook Sig | 0/10 | 10/10 | DONE |
-| 3 | RLS Policies | 7/10 | 10/10 | DONE |
-| 4 | Data Access (DI) | 6/10 | 10/10 | DONE |
-| 5 | Error Handling | 6/10 | 10/10 | DONE |
-| 6 | Rate Limiting | 4/10 | 10/10 | DONE |
-| 7 | Real-time | 5/10 | 10/10 | DONE |
-| 8 | Input Validation | 7/10 | 10/10 | DONE |
-| 9 | Credentials | 0/10 | 10/10 | DONE |
+## Changes
 
-## Sprint 12.1 (This Session)
+### 1. Traefik (edge router)
+- `--api.insecure=true` → `--api.dashboard=false` (dashboard off)
+- Removed public port `8080:8080` (insecure dashboard)
+- Added HTTP→HTTPS redirect at `web` entrypoint
+- Added access logging (file: `/var/log/traefik/access.log`)
+- New named volume `traefik_logs`
 
-Fixes applied to make the project buildable and testable after Sprint 12:
+### 2. Redis (cache/queue)
+- Added `--requirepass ${REDIS_PASSWORD}` to startup command
+- Removed public port `6379:6379` (internal-only now)
+- All 7 Redis URL references updated to include password (`redis://:${REDIS_PASSWORD}@redis:6379`)
 
-| # | Fix | Files Changed |
-|---|-----|---------------|
-| 1 | DI caller migration (6 files missing `supabase` param) | battle-royale route, battles/create, onboarding, TopicViewer |
-| 2 | Buffer type for Stripe webhook timingSafeEqual | webhooks/stripe/route.ts |
-| 3 | Realtime type casts (`payload.new as unknown as EventData`) | battle-royale/page.tsx |
-| 4 | Test env vars (OLLAMA_API_KEY, SUPABASE_URL) | ai-router.test.ts, supabase.test.ts |
-| 5 | Created `lib/subscription.ts` (missing module) | lib/subscription.ts (new) |
-| 6 | Module-level `requireEnv` → `optionalEnv` (build compat) | ai-router.ts, telegram-bot.ts |
-| 7 | Supabase client graceful fallback | lib/supabase.ts |
-| 8 | Next.js 15 dynamic route Promise params (7 routes) | admin/isa, nudges, quizzes, tenants, topics, tutors, white-label |
-| 9 | ESLint config + unescaped entity fixes | .eslintrc.json, dhwani, ranks |
+### 3. Removed unnecessarily exposed ports (now internal-only behind Traefik or docker network)
+- `prepx` (Next.js) `3000`
+- `db` (Postgres) `5432`
+- `supabase-kong` `8000`
+- `minio` `9000`, `9001`
+- `crawl4ai` `11235`
+- `prometheus` `9090`
+- `jaeger` `16686`, `14268`, `6831/udp`, `6832/udp`
+- `uptime-kuma` `3001`
+- `comfyui` `8188`
+- `ollama` `11434`
+- `imgproxy` `5001`
+
+### 4. Network isolation
+- `prepx-internal` set to `internal: true` (no outbound from this network)
+- Added `prepx-public` to services that need outbound internet:
+  - `supabase-auth` (SMTP, Twilio)
+  - `supabase-functions` (external APIs)
+  - `crawl4ai` (web crawling)
+  - `lecture-queue-worker` (OpenAI API)
+  - `comfyui` (model downloads)
+  - `ollama` (model pulls)
+
+### 5. App-level hardening
+- `next.config.ts`: narrowed image `remotePatterns` from `**` to known hosts, set `poweredByHeader: false`, added security headers (X-Content-Type-Options, X-Frame-Options, Referrer-Policy, Permissions-Policy), added long-cache header for static assets
+- `middleware.ts`: emit security headers + HSTS on HTTPS responses
+- `app/api/health/route.ts`: now performs a real DB connectivity check; returns 503 + `healthy:false` when Postgres is unreachable
+
+### 6. Env example
+- `.env.vps.example`: added `REDIS_PASSWORD`, updated `REDIS_URL` to include credentials
 
 ## Verification
-- tsc --noEmit: 0 errors
-- vitest run: 46/46 pass
-- npm run build: SUCCESS
-- npm run lint: 0 errors (4 warnings)
+
+| Gate | Result |
+|------|--------|
+| `tsc --noEmit` | 0 errors |
+| `npm run test:run` (vitest) | 85/85 pass |
+| `npm run lint` | 0 errors, 4 pre-existing warnings |
+| `docker compose -f docker-compose.vps.yml config --quiet` | exit 0 (valid) |
+
+## Files changed (5)
+
+- `docker-compose.vps.yml`
+- `next.config.ts`
+- `middleware.ts`
+- `app/api/health/route.ts`
+- `.env.vps.example`

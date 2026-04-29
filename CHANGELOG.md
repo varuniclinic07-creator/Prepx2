@@ -1,5 +1,22 @@
 # CHANGELOG.md
 
+## [Unreleased] — Sprint 15 — VPS Deployment Hardening (2026-04-29)
+
+### Security (Infrastructure)
+- Traefik: disabled insecure API/dashboard, removed public port 8080, forced HTTP→HTTPS, enabled access logs
+- Redis: required password via `REDIS_PASSWORD`, removed public port; updated all 7 service connections
+- Removed public port exposure for: prepx app, postgres, kong, minio, crawl4ai, prometheus, jaeger, uptime-kuma, comfyui, ollama, imgproxy
+- Network: `prepx-internal` marked `internal: true`; `prepx-public` added to services needing outbound (supabase-auth, supabase-functions, crawl4ai, lecture-queue-worker, comfyui, ollama)
+
+### Security (Application)
+- HTTP response headers (set in both `next.config.ts` and `middleware.ts`): X-Content-Type-Options, X-Frame-Options, Referrer-Policy, Permissions-Policy
+- HSTS header on HTTPS responses (1 year, includeSubDomains)
+- `next.config.ts`: `poweredByHeader: false`; narrowed image `remotePatterns` to known hosts; long-cache for static assets
+
+### Operations
+- `/api/health` now exercises Postgres connectivity, returns 503 when DB unreachable
+- `.env.vps.example`: added `REDIS_PASSWORD` placeholder
+
 ## [Unreleased] — Sprint 12 + 12.1 + 13
 
 ### Security

@@ -66,6 +66,14 @@ export async function middleware(request: NextRequest) {
   let res = NextResponse.next()
   if (tenant.slug) res.headers.set('x-tenant-slug', tenant.slug)
 
+  res.headers.set('X-Content-Type-Options', 'nosniff')
+  res.headers.set('X-Frame-Options', 'DENY')
+  res.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin')
+  res.headers.set('Permissions-Policy', 'camera=(), microphone=(self), geolocation=()')
+  if (request.nextUrl.protocol === 'https:') {
+    res.headers.set('Strict-Transport-Security', 'max-age=31536000; includeSubDomains')
+  }
+
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,

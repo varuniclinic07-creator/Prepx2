@@ -1,52 +1,44 @@
 # NEXT_STEPS.md
 
-**Last Updated:** 2026-04-29T04:55:00Z
+**Last Updated:** 2026-04-29T07:45:00Z
 
 ---
 
-## Immediate (Sprint 12.2)
+## Sprint 15 (just completed) — see CURRENT_SPRINT.md
 
-### 1. Commit Sprint 12 + 12.1 changes
-- 47 files modified
-- All gates green (tsc, vitest, build, lint)
-- Commit message: "fix: Sprint 12 architecture hardening + build/test fixes"
-
-### 2. Deploy migrations 042 + 043
-- `042_atomic_financial_operations.sql` — `spend_coins()`, `accept_battle()` functions
-- `043_tighten_rls_policies.sql` — `is_admin()` function, restrictive INSERT policies
-- Deploy to Supabase via SQL Editor or CLI
+VPS compose + app hardening landed; ready to commit.
 
 ---
 
-## Sprint 13: Remaining Security Audit (P0/P1)
+## Immediate (post-commit)
 
-### P0 — Critical
-1. **Auth on LLM endpoints:** Add `getUser()` to `astra/generate`, `mains/evaluate`, `test-ai`
-2. **Remove IDOR:** `rank/predict` should use `user.id` not `body.user_id`
-3. **Remove IDOR:** `mains/evaluate` should use session user, not body param
+### 1. Deploy to VPS
+- Set `REDIS_PASSWORD` (32+ chars) and all other env vars in Coolify or `.env.vps`
+- Pull & redeploy via `docker compose -f docker-compose.vps.yml up -d`
+- Run external port scan from a non-VPS host: only 80, 443 should answer
+- Confirm `https://${APP_DOMAIN}/api/health` → 200 `{healthy: true}`
+- Confirm `http://${APP_DOMAIN}` redirects to https
+- Confirm `Strict-Transport-Security`, `X-Frame-Options`, `X-Content-Type-Options`, `Referrer-Policy`, `Permissions-Policy` headers present
 
-### P1 — High Priority
-4. **IDOR: essay-colosseum/submit** — Validate user is participant
-5. **IDOR: essay-colosseum/accept** — Validate invitation/ownership
-6. **Mass assignment: white-label/tenants** — Zod whitelist on POST body
-7. **Auth: scrape/run** — Add admin role check
-8. **Telegram bot: secret verification** — Add `X-Telegram-Bot-Api-Secret-Token` header check
-
----
-
-## Sprint 14: Test Coverage + E2E
-
-1. Add unit tests for `lib/battle-royale.ts`, `lib/realtime.ts`, `lib/agents/hermes.ts`
-2. Add integration test for rate limiting middleware
-3. Add integration test for webhook signature verification
-4. Run full E2E suite against dev server with Supabase
+### 2. Database migrations
+- Apply `042_atomic_financial_operations.sql` (`spend_coins()`, `accept_battle()`)
+- Apply `043_tighten_rls_policies.sql` (`is_admin()` + restrictive INSERT policies)
 
 ---
 
-## Sprint 15: Production Deployment
+## Sprint 16 (proposed) — Production observability
 
-1. Set all environment variables in Coolify
-2. Deploy to VPS via Docker Compose or Coolify
-3. Run smoke tests against production
-4. Monitor error rates and performance
-5. Set up alerting (Prometheus/Grafana)
+1. Wire Sentry DSN, verify error events arrive
+2. Configure Grafana dashboards from Prometheus metrics
+3. Set up Uptime Kuma external probes for `/api/health`, `/`, `/api/quizzes`
+4. Add structured logging (already in app code) → ship to Plausible/Loki
+5. Document the on-call playbook (incident response, redeploy, rollback)
+
+---
+
+## Sprint 17 (proposed) — Remaining security audit items
+
+From `BACKEND_SECURITY_AUDIT.md` — anything still open after Sprint 13:
+- Re-audit unauthenticated LLM endpoints
+- Re-audit IDOR in battles, essay-colosseum
+- Add e2e tests covering rate-limited routes and auth boundaries

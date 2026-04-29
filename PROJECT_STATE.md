@@ -1,8 +1,8 @@
 # PROJECT_STATE.md
 
-**Last Updated:** 2026-04-29T04:55:00Z
+**Last Updated:** 2026-04-29T07:45:00Z
 **Project:** PrepX — UPSC CSE Exam Preparation SaaS
-**Phase:** Post-Architecture Hardening, Pre-Commit
+**Phase:** VPS Deployment Hardening Complete, Pre-Production-Deploy
 
 ---
 
@@ -13,12 +13,13 @@
 |------|--------|---------|
 | `npm install` | PASS | 549 packages, `--legacy-peer-deps` |
 | `tsc --noEmit` | PASS | 0 errors |
-| `vitest run` | PASS | 46/46 tests, 9 suites |
+| `vitest run` | PASS | 85/85 tests, 14 suites |
 | `npm run build` | PASS | Production standalone output |
 | `npm run lint` | PASS | 0 errors, 4 pre-existing warnings |
+| `compose config` | PASS | docker-compose.vps.yml validates |
 
 ### Uncommitted Changes
-47 files changed, 446 insertions, 262 deletions — all from Sprint 12 (Architecture Hardening).
+5 files changed (Sprint 15 — VPS Hardening): docker-compose.vps.yml, next.config.ts, middleware.ts, app/api/health/route.ts, .env.vps.example.
 
 ### Sprint History
 | Sprint | Focus | Status |
@@ -29,8 +30,11 @@
 | Sprint 11.5 | VPS Docker Compose stack | COMMITTED `b40909c` |
 | Sprint 11.6 | Coolify peer dep fix | COMMITTED `f759572` |
 | Sprint 11.7 | ComfyUI/LTX2.3 integration | COMMITTED `f9588a4` |
-| Sprint 12 | Architecture Hardening (9 gaps) | **UNCOMMITTED** |
-| Sprint 12.1 | DI migration fix + build fix | **UNCOMMITTED** |
+| Sprint 12 | Architecture Hardening (9 gaps) | COMMITTED `28b73f3` |
+| Sprint 12.1 | DI migration fix + build fix | COMMITTED `28b73f3` |
+| Sprint 13 | P0/P1 security closes | COMMITTED `6438243` |
+| Sprint 14 | Unit test expansion (39 new tests) | COMMITTED `2462786` |
+| Sprint 15 | VPS Deployment Hardening | **UNCOMMITTED** |
 
 ---
 

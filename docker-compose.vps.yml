@@ -33,23 +33,28 @@ services:
     image: traefik:v3.0
     restart: unless-stopped
     command:
-      - --api.insecure=true
+      - --api.dashboard=false
       - --providers.docker=true
       - --providers.docker.exposedbydefault=false
       - --entrypoints.web.address=:80
+      - --entrypoints.web.http.redirections.entryPoint.to=websecure
+      - --entrypoints.web.http.redirections.entryPoint.scheme=https
       - --entrypoints.websecure.address=:443
       - --certificatesresolvers.letsencrypt.acme.tlschallenge=true
       - --certificatesresolvers.letsencrypt.acme.email=${ADMIN_EMAIL}
       - --certificatesresolvers.letsencrypt.acme.storage=/letsencrypt/acme.json
       - --tracing.jaeger.samplingServerURL=http://jaeger:5778/sampling
       - --tracing.jaeger.localAgentHostPort=jaeger:6831
+      - --accesslog=true
+      - --accesslog.filepath=/var/log/traefik/access.log
+      - --accesslog.bufferingsize=100
     ports:
       - "80:80"
       - "443:443"
-      - "8080:8080"
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - letsencrypt:/letsencrypt
+      - traefik_logs:/var/log/traefik
     labels:
       - "traefik.enable=true"
     depends_on:
@@ -70,18 +75,16 @@ services:
         NEXT_PUBLIC_SUPABASE_URL: ${NEXT_PUBLIC_SUPABASE_URL}
         NEXT_PUBLIC_SUPABASE_ANON_KEY: ${NEXT_PUBLIC_SUPABASE_ANON_KEY}
         NEXT_PUBLIC_RAZORPAY_KEY_ID: ${NEXT_PUBLIC_RAZORPAY_KEY_ID}
-    ports:
-      - "3000:3000"
     env_file:
       - .env.vps
     environment:
       DATABASE_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
-      REDIS_URL: redis://redis:6379
+      REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379
       S3_ENDPOINT: http://minio:9000
       S3_BUCKET: prepx
       S3_ACCESS_KEY: ${MINIO_ROOT_USER}
       S3_SECRET_KEY: ${MINIO_ROOT_PASSWORD}
-      RATE_LIMIT_REDIS: redis://redis:6379
+      RATE_LIMIT_REDIS: redis://:${REDIS_PASSWORD}@redis:6379
       JAEGER_ENDPOINT: http://jaeger:14268/api/traces
       SENTRY_DSN: ${SENTRY_DSN}
       RAZORPAY_KEY_SECRET: ${RAZORPAY_KEY_SECRET}
@@ -133,8 +136,6 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./supabase/migrations:/docker-entrypoint-initdb.d:ro
-    ports:
-      - "5432:5432"
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
       interval: 10s
@@ -183,6 +184,7 @@ services:
         condition: service_healthy
     restart: unless-stopped
     networks:
+      - prepx-public
       - prepx-internal
 
   # -------------------------------------------------------------------------
@@ -290,6 +292,7 @@ services:
         condition: service_healthy
     restart: unless-stopped
     networks:
+      - prepx-public
       - prepx-internal
 
   # -------------------------------------------------------------------------
@@ -310,8 +313,6 @@ services:
       DASHBOARD_PASSWORD: ${KONG_DASHBOARD_PASS}
     volumes:
       - ./vps/init/kong.yml:/home/kong/kong.yml:ro
-    ports:
-      - "8000:8000"
     depends_on:
       - supabase-auth
       - supabase-rest
@@ -329,11 +330,9 @@ services:
   redis:
     container_name: prepx-redis
     image: redis:7-alpine
-    command: redis-server --appendonly yes --maxmemory 512mb --maxmemory-policy allkeys-lru
+    command: redis-server --appendonly yes --maxmemory 512mb --maxmemory-policy allkeys-lru --requirepass ${REDIS_PASSWORD}
     volumes:
       - redis_data:/data
-    ports:
-      - "6379:6379"
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 10s
@@ -353,9 +352,6 @@ services:
     environment:
       MINIO_ROOT_USER: ${MINIO_ROOT_USER}
       MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
-    ports:
-      - "9000:9000"
-      - "9001:9001"
     volumes:
       - minio_data:/data
     healthcheck:
@@ -382,16 +378,15 @@ services:
     image: unclecode/crawl4ai:all-amd64
     environment:
       CRAWL4AI_API_TOKEN: ${CRAWL4AI_API_TOKEN}
-      REDIS_URL: redis://redis:6379
+      REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379
       MAX_CONCURRENT_CRAWLS: 5
       DEFAULT_TIMEOUT: 30000
-    ports:
-      - "11235:11235"
     depends_on:
       redis:
         condition: service_healthy
     restart: unless-stopped
     networks:
+      - prepx-public
       - prepx-internal
 
   # -------------------------------------------------------------------------
@@ -406,7 +401,7 @@ services:
       REMOTION_S3_ENDPOINT: http://minio:9000
       REMOTION_S3_BUCKET: remotion
       REMOTION_MODE: render
-      REDIS_URL: redis://redis:6379
+      REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379
     volumes:
       - remotion_data:/tmp/remotion
       - ./app/astra:/app/src:ro
@@ -445,7 +440,7 @@ services:
     volumes:
       - ffmpeg_data:/data
     environment:
-      REDIS_URL: redis://redis:6379
+      REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379
       S3_ENDPOINT: http://minio:9000
       S3_BUCKET: prepx-media
       AWS_ACCESS_KEY_ID: ${MINIO_ROOT_USER}
@@ -468,7 +463,7 @@ services:
     volumes:
       - ./scripts/lecture-queue:/app
     environment:
-      REDIS_URL: redis://redis:6379
+      REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379
       POSTGRES_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
       OPENAI_API_KEY: ${OPENAI_API_KEY}
       RABBITMQ_URL: amqp://guest:guest@rabbitmq:5672/
@@ -480,6 +475,7 @@ services:
         condition: service_healthy
     restart: unless-stopped
     networks:
+      - prepx-public
       - prepx-internal
 
   # -------------------------------------------------------------------------
@@ -586,7 +582,7 @@ services:
       DB_POSTGRESDB_DATABASE: n8n
       DB_POSTGRESDB_USER: n8n
       DB_POSTGRESDB_PASSWORD: ${N8N_DB_PASSWORD}
-      REDIS_URL: redis://redis:6379
+      REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379
     volumes:
       - n8n_data:/home/node/.n8n
     depends_on:
@@ -620,8 +616,6 @@ services:
     volumes:
       - ./vps/monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
       - prometheus_data:/prometheus
-    ports:
-      - "9090:9090"
     restart: unless-stopped
     networks:
       - prepx-internal
@@ -660,11 +654,6 @@ services:
   jaeger:
     container_name: prepx-jaeger
     image: jaegertracing/all-in-one:1.57
-    ports:
-      - "16686:16686"
-      - "14268:14268"
-      - "6831:6831/udp"
-      - "6832:6832/udp"
     environment:
       COLLECTOR_OTLP_ENABLED: "true"
     volumes:
@@ -681,8 +670,6 @@ services:
     image: louislam/uptime-kuma:1-debian
     volumes:
       - uptime_data:/app/data
-    ports:
-      - "3001:3001"
     restart: unless-stopped
     labels:
       - "traefik.enable=true"
@@ -700,8 +687,6 @@ services:
   comfyui:
     container_name: prepx-comfyui
     image: comfyanonymous/comfyui:latest
-    ports:
-      - "8188:8188"
     volumes:
       - comfyui_models:/app/models
       - comfyui_output:/app/output
@@ -710,6 +695,7 @@ services:
       COMFYUI_ENABLE_CORS: "True"
     restart: unless-stopped
     networks:
+      - prepx-public
       - prepx-internal
 
   # -------------------------------------------------------------------------
@@ -718,8 +704,6 @@ services:
   ollama:
     container_name: prepx-ollama
     image: ollama/ollama:0.1.47
-    ports:
-      - "11434:11434"
     volumes:
       - ollama_data:/root/.ollama
     restart: unless-stopped
@@ -732,6 +716,7 @@ services:
     #           count: 1
     #           capabilities: [gpu]
     networks:
+      - prepx-public
       - prepx-internal
 
   # -------------------------------------------------------------------------
@@ -750,8 +735,6 @@ services:
       AWS_ACCESS_KEY_ID: ${MINIO_ROOT_USER}
       AWS_SECRET_ACCESS_KEY: ${MINIO_ROOT_PASSWORD}
     restart: unless-stopped
-    ports:
-      - "5001:8080"
     networks:
       - prepx-internal
 
@@ -763,7 +746,7 @@ networks:
     driver: bridge
   prepx-internal:
     driver: bridge
-    internal: false
+    internal: true
 
 # =============================================================================
 # Named Volumes
@@ -806,4 +789,6 @@ volumes:
   comfyui_output:
     driver: local
   ollama_data:
+    driver: local
+  traefik_logs:
     driver: local

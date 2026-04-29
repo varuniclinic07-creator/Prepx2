@@ -1,6 +1,60 @@
 # IMPLEMENTATION_LOG.md
 
-**Last Updated:** 2026-04-29T04:55:00Z
+**Last Updated:** 2026-04-29T07:45:00Z
+
+---
+
+## 2026-04-29 — Sprint 15: VPS Deployment Hardening
+
+### Context
+`docker-compose.vps.yml` had several production-unsafe defaults: Traefik dashboard exposed on port 8080 with `--api.insecure=true`, Redis with no auth and a public port, Postgres/Prometheus/Jaeger/MinIO admin UIs all reachable from the internet, and a network labelled `internal` that wasn't actually internal. Plus the Next.js layer was missing standard hardening headers.
+
+### Changes
+
+#### 1. Traefik
+- Disabled insecure API/dashboard
+- Removed public port `8080:8080`
+- Added HTTP→HTTPS redirect at the `web` entrypoint (browsers hitting `http://` get a 301 to `https://`)
+- Added file access logs (volume `traefik_logs`)
+
+#### 2. Redis
+- Required password via `--requirepass ${REDIS_PASSWORD}`
+- Removed public port `6379:6379`
+- Updated all 7 Redis URL references in compose: prepx, prepx (RATE_LIMIT_REDIS), crawl4ai, remotion-worker, ffmpeg-worker, lecture-queue-worker, n8n
+
+#### 3. Removed public port exposure
+Removed `ports:` blocks (services still reachable internally via docker DNS, externally only through Traefik):
+- prepx, db, supabase-kong, minio, crawl4ai, prometheus, jaeger (4 ports), uptime-kuma, comfyui, ollama, imgproxy
+
+#### 4. Network isolation
+- `prepx-internal` set to `internal: true` — services only on this network cannot reach the internet
+- Added `prepx-public` to services that *do* need outbound: supabase-auth (SMTP/Twilio), supabase-functions (external APIs), crawl4ai (web crawling), lecture-queue-worker (OpenAI), comfyui (model downloads), ollama (model pulls)
+
+#### 5. Application headers (`next.config.ts` + `middleware.ts`)
+- Set on every response: `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, `Referrer-Policy: strict-origin-when-cross-origin`, `Permissions-Policy: camera=(), microphone=(self), geolocation=()` (microphone allowed on `self` for Astra Live voice features)
+- HSTS (`Strict-Transport-Security: max-age=31536000; includeSubDomains`) on HTTPS responses (set in middleware so it only applies to live HTTPS, not local dev)
+- `poweredByHeader: false` (no `X-Powered-By`)
+- Image `remotePatterns` narrowed from wildcard `**` to known hosts (Supabase, Google, GitHub avatars). Codebase has no `next/image` usage today, so this is forward-looking.
+- Long-cache `Cache-Control` for static asset extensions
+
+#### 6. Health check
+- `app/api/health/route.ts` now hits Postgres (`select id from users limit 1`) and returns `503 {healthy: false}` if the query throws. Previously always returned 200.
+
+#### 7. Env example
+- `.env.vps.example`: added `REDIS_PASSWORD=CHANGE_ME_REDIS_STRONG_PASSWORD_32CHARS`, `REDIS_URL` updated to interpolate it.
+
+### Verification
+- `tsc --noEmit`: 0 errors
+- `npm run test:run`: 85/85 pass
+- `npm run lint`: 0 errors, 4 pre-existing warnings
+- `docker compose -f docker-compose.vps.yml config --quiet`: exit 0
+
+### Affected files (5)
+- `docker-compose.vps.yml`
+- `next.config.ts`
+- `middleware.ts`
+- `app/api/health/route.ts`
+- `.env.vps.example`
 
 ---
 
