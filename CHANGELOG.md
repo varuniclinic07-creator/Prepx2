@@ -1,6 +1,6 @@
 # CHANGELOG.md
 
-## [Unreleased] — Sprint 12 + 12.1
+## [Unreleased] — Sprint 12 + 12.1 + 13
 
 ### Security
 - Added HMAC-SHA256 Stripe webhook signature verification
@@ -9,6 +9,8 @@
 - Replaced `USING(true)` INSERT policies with admin check
 - Added `lib/env.ts` credential safety (`requireEnv`/`optionalEnv`)
 - Added `lib/api-response.ts` standardized error responses
+- **Sprint 13:** Added Telegram webhook secret token verification (`X-Telegram-Bot-Api-Secret-Token` + `timingSafeEqual`)
+- **Sprint 13:** Added admin authentication to white-label tenants GET endpoint (was publicly accessible)
 
 ### Architecture
 - All `lib/` modules now accept `SupabaseClient` parameter (dependency injection)

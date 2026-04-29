@@ -8,6 +8,10 @@ const PatchSchema = z.object({ id: z.string().uuid(), status: z.string() });
 export async function GET() {
   try {
     const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return NextResponse.json({ error: 'Login required' }, { status: 401 });
+    const { data: profile } = await supabase.from('users').select('role').eq('id', user.id).single();
+    if (profile?.role !== 'admin') return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     const { data } = await supabase.from('white_label_tenants').select('*').order('created_at', { ascending: false });
     return NextResponse.json({ tenants: data || [] });
   } catch (err: any) {

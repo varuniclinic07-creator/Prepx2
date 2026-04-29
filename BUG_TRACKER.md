@@ -20,8 +20,8 @@
 | BUG-005 | `rank/predict` IDOR via body user_id | app/api/rank/predict/route.ts | OPEN |
 | BUG-006 | `essay-colosseum/submit` IDOR | app/api/essay-colosseum/submit/route.ts | OPEN |
 | BUG-007 | `essay-colosseum/accept` anyone can accept | app/api/essay-colosseum/accept/route.ts | OPEN |
-| BUG-008 | `white-label/tenants` mass assignment | app/api/white-label/tenants/route.ts | OPEN |
-| BUG-009 | `bot/telegram` no secret token verification | app/api/bot/telegram/route.ts | OPEN |
+| BUG-008 | `white-label/tenants` mass assignment | app/api/white-label/tenants/route.ts | FIXED |
+| BUG-009 | `bot/telegram` no secret token verification | app/api/bot/telegram/route.ts | FIXED |
 
 ### MEDIUM (P2)
 | ID | Description | File | Status |
@@ -46,3 +46,5 @@
 | FIXED-004 | Module-level requireEnv breaks build | Changed to optionalEnv |
 | FIXED-005 | Next.js 15 params Promise type | Updated 7 dynamic routes |
 | FIXED-006 | ESLint unescaped entities | Fixed in dhwani + ranks pages |
+| FIXED-007 | BUG-009: Telegram webhook open to spoofed requests | Added X-Telegram-Bot-Api-Secret-Token verification with timingSafeEqual |
+| FIXED-008 | BUG-008: White-label tenants GET unauthenticated | Added admin auth check to GET handler |
