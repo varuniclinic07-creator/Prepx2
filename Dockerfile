@@ -83,10 +83,14 @@ USER nextjs
 
 EXPOSE 3000
 
-# No HEALTHCHECK: Coolify injects $PORT at runtime (e.g. 3091) but the
-# variable doesn't reliably expand inside HEALTHCHECK CMD's shell, so
-# wget hits the wrong port and reports "Connection refused" even when
-# the app is healthy. Coolify's external traefik probe handles routing
-# health on the FQDN; the in-container probe was redundant and buggy.
+# Always-passing HEALTHCHECK: Coolify caches the "custom healthcheck"
+# flag from the first deploy and inspects .State.Health.Status — if the
+# field is absent (no HEALTHCHECK in Dockerfile), Coolify's deploy job
+# crashes on a template-parsing error. A trivial passing probe keeps
+# the field present without re-introducing the $PORT-expansion bug.
+# Real route-level health is enforced by Coolify's traefik probe on the
+# FQDN, so this is just a placeholder to satisfy the inspect call.
+HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=1 \
+    CMD true
 
 CMD ["node", "server.js"]
