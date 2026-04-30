@@ -1,0 +1,171 @@
+{
+  "runAt": "2026-04-29T22:49:36.936Z",
+  "url": "http://supabase.173-185-79-174.sslip.io:47882",
+  "summary": {
+    "total": 16,
+    "passed": 16,
+    "failed": 0,
+    "byLayer": {
+      "schema": {
+        "pass": 5,
+        "fail": 0
+      },
+      "function": {
+        "pass": 5,
+        "fail": 0
+      },
+      "behavior": {
+        "pass": 6,
+        "fail": 0
+      }
+    }
+  },
+  "aborted": false,
+  "skippedSquadCreate": true,
+  "checks": [
+    {
+      "id": "schema.squad_members",
+      "layer": "schema",
+      "description": "squad_members reachable (was 500)",
+      "pass": true,
+      "status": 200,
+      "latencyMs": 726,
+      "detail": null
+    },
+    {
+      "id": "schema.comfyui_jobs",
+      "layer": "schema",
+      "description": "comfyui_jobs reachable (was 404)",
+      "pass": true,
+      "status": 200,
+      "latencyMs": 471,
+      "detail": null
+    },
+    {
+      "id": "schema.comfyui_settings",
+      "layer": "schema",
+      "description": "comfyui_settings reachable (was 404)",
+      "pass": true,
+      "status": 200,
+      "latencyMs": 240,
+      "detail": null
+    },
+    {
+      "id": "schema.users",
+      "layer": "schema",
+      "description": "users reachable (was 200)",
+      "pass": true,
+      "status": 200,
+      "latencyMs": 244,
+      "detail": null
+    },
+    {
+      "id": "schema.user_balances",
+      "layer": "schema",
+      "description": "user_balances reachable (was 200)",
+      "pass": true,
+      "status": 200,
+      "latencyMs": 237,
+      "detail": null
+    },
+    {
+      "id": "function.user_in_squad",
+      "layer": "function",
+      "description": "RPC user_in_squad reachable",
+      "pass": true,
+      "status": 200,
+      "latencyMs": 251,
+      "detail": null
+    },
+    {
+      "id": "function.is_admin",
+      "layer": "function",
+      "description": "RPC is_admin reachable",
+      "pass": true,
+      "status": 200,
+      "latencyMs": 237,
+      "detail": null
+    },
+    {
+      "id": "function.spend_coins",
+      "layer": "function",
+      "description": "RPC spend_coins reachable",
+      "pass": true,
+      "status": 200,
+      "latencyMs": 239,
+      "detail": null
+    },
+    {
+      "id": "function.accept_battle",
+      "layer": "function",
+      "description": "RPC accept_battle reachable",
+      "pass": true,
+      "status": 200,
+      "latencyMs": 240,
+      "detail": null
+    },
+    {
+      "id": "function.increment_subscriber_count",
+      "layer": "function",
+      "description": "RPC increment_subscriber_count reachable",
+      "pass": true,
+      "status": 204,
+      "latencyMs": 238,
+      "detail": null
+    },
+    {
+      "id": "auth.userA.signin",
+      "layer": "behavior",
+      "description": "userA signin returns JWT (verify-A-1777502980116@example.com)",
+      "pass": true,
+      "status": 200,
+      "latencyMs": null,
+      "detail": null
+    },
+    {
+      "id": "auth.userB.signin",
+      "layer": "behavior",
+      "description": "userB signin returns JWT (verify-B-1777502980915@example.com)",
+      "pass": true,
+      "status": 200,
+      "latencyMs": null,
+      "detail": null
+    },
+    {
+      "id": "auth.regression.users_select",
+      "layer": "behavior",
+      "description": "userA can SELECT own row from users (no RLS regression)",
+      "pass": true,
+      "status": 200,
+      "latencyMs": 236,
+      "detail": null
+    },
+    {
+      "id": "rls.squad_members.select_no_500",
+      "layer": "behavior",
+      "description": "SELECT squad_members no longer returns 500 (RLS recursion fixed)",
+      "pass": true,
+      "status": 200,
+      "latencyMs": 261,
+      "detail": null
+    },
+    {
+      "id": "rls.squad_members.select_latency",
+      "layer": "behavior",
+      "description": "SELECT squad_members latency under 2s",
+      "pass": true,
+      "status": 200,
+      "latencyMs": 261,
+      "detail": null
+    },
+    {
+      "id": "behavior.squad.create",
+      "layer": "behavior",
+      "description": "squad insert (skipped — RLS admin-write policy blocks non-admins, expected)",
+      "pass": true,
+      "status": 403,
+      "latencyMs": 244,
+      "detail": "admin-only policy; skipping membership probe"
+    }
+  ]
+}

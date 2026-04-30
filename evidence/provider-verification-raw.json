@@ -1,0 +1,377 @@
+{
+  "results": [
+    {
+      "provider": "ollama-cloud",
+      "label": "ollama-cloud / deepseek-v4-pro:cloud",
+      "model": "deepseek-v4-pro:cloud",
+      "baseUrl": "https://ollama.com/v1",
+      "status": 200,
+      "ok": true,
+      "latencyMs": 2137,
+      "content": "ok",
+      "error": null,
+      "bodySample": "{\"id\":\"chatcmpl-138\",\"object\":\"chat.completion\",\"created\":1777465189,\"model\":\"deepseek-v4-pro:cloud\",\"system_fingerprint\":\"fp_ollama\",\"choices\":[{\"index\":0,\"message\":{\"role\":\"assistant\",\"content\":\"ok\",\"reasoning\":\"We are asked: \\\"reply with exactly one word: ok\\\". The instruction is clear: respond with exactly one word, which is \\\"ok\\\". So the response should be just \\\"ok\\\".\"},\"finish_reason\":\"sto"
+    },
+    {
+      "provider": "groq",
+      "label": "groq / key-1 / llama-3.3-70b-versatile",
+      "model": "llama-3.3-70b-versatile",
+      "baseUrl": "https://api.groq.com/openai/v1",
+      "status": 400,
+      "ok": false,
+      "latencyMs": 140,
+      "content": null,
+      "error": "Organization has been restricted. Please reach out to support if you believe this was in error.",
+      "bodySample": "{\"error\":{\"message\":\"Organization has been restricted. Please reach out to support if you believe this was in error.\",\"type\":\"invalid_request_error\",\"code\":\"organization_restricted\"}}\n"
+    },
+    {
+      "provider": "groq",
+      "label": "groq / key-2 / llama-3.3-70b-versatile",
+      "model": "llama-3.3-70b-versatile",
+      "baseUrl": "https://api.groq.com/openai/v1",
+      "status": 200,
+      "ok": true,
+      "latencyMs": 267,
+      "content": "ok",
+      "error": null,
+      "bodySample": "{\"id\":\"chatcmpl-f606334a-e897-4fdc-9ab7-a3189f08b4dc\",\"object\":\"chat.completion\",\"created\":1777465190,\"model\":\"llama-3.3-70b-versatile\",\"choices\":[{\"index\":0,\"message\":{\"role\":\"assistant\",\"content\":\"ok\"},\"logprobs\":null,\"finish_reason\":\"stop\"}],\"usage\":{\"queue_time\":0.161092057,\"prompt_tokens\":42,\"prompt_time\":0.003989191,\"completion_tokens\":2,\"completion_time\":0.01417099,\"total_tokens\":44,\"total_"
+    },
+    {
+      "provider": "groq",
+      "label": "groq / key-3 / llama-3.3-70b-versatile",
+      "model": "llama-3.3-70b-versatile",
+      "baseUrl": "https://api.groq.com/openai/v1",
+      "status": 200,
+      "ok": true,
+      "latencyMs": 124,
+      "content": "ok",
+      "error": null,
+      "bodySample": "{\"id\":\"chatcmpl-cb005547-b75f-4bcd-9799-210edeb7f1f9\",\"object\":\"chat.completion\",\"created\":1777465190,\"model\":\"llama-3.3-70b-versatile\",\"choices\":[{\"index\":0,\"message\":{\"role\":\"assistant\",\"content\":\"ok\"},\"logprobs\":null,\"finish_reason\":\"stop\"}],\"usage\":{\"queue_time\":0.055147766,\"prompt_tokens\":42,\"prompt_time\":0.004712804,\"completion_tokens\":2,\"completion_time\":0.014170762,\"total_tokens\":44,\"total"
+    },
+    {
+      "provider": "groq",
+      "label": "groq / key-4 / llama-3.3-70b-versatile",
+      "model": "llama-3.3-70b-versatile",
+      "baseUrl": "https://api.groq.com/openai/v1",
+      "status": 200,
+      "ok": true,
+      "latencyMs": 587,
+      "content": "ok",
+      "error": null,
+      "bodySample": "{\"id\":\"chatcmpl-7e454d47-526b-4478-910e-95a59a73b3aa\",\"object\":\"chat.completion\",\"created\":1777465190,\"model\":\"llama-3.3-70b-versatile\",\"choices\":[{\"index\":0,\"message\":{\"role\":\"assistant\",\"content\":\"ok\"},\"logprobs\":null,\"finish_reason\":\"stop\"}],\"usage\":{\"queue_time\":0.316265862,\"prompt_tokens\":42,\"prompt_time\":0.004215487,\"completion_tokens\":2,\"completion_time\":0.0141756,\"total_tokens\":44,\"total_t"
+    },
+    {
+      "provider": "groq",
+      "label": "groq / key-5 / llama-3.3-70b-versatile",
+      "model": "llama-3.3-70b-versatile",
+      "baseUrl": "https://api.groq.com/openai/v1",
+      "status": 200,
+      "ok": true,
+      "latencyMs": 127,
+      "content": "ok",
+      "error": null,
+      "bodySample": "{\"id\":\"chatcmpl-31b4de5c-ffe5-4e0a-a5b9-8d3f7a51c4dc\",\"object\":\"chat.completion\",\"created\":1777465190,\"model\":\"llama-3.3-70b-versatile\",\"choices\":[{\"index\":0,\"message\":{\"role\":\"assistant\",\"content\":\"ok\"},\"logprobs\":null,\"finish_reason\":\"stop\"}],\"usage\":{\"queue_time\":0.068223003,\"prompt_tokens\":42,\"prompt_time\":0.00397026,\"completion_tokens\":2,\"completion_time\":0.014173462,\"total_tokens\":44,\"total_"
+    },
+    {
+      "provider": "groq",
+      "label": "groq / key-6 / llama-3.3-70b-versatile",
+      "model": "llama-3.3-70b-versatile",
+      "baseUrl": "https://api.groq.com/openai/v1",
+      "status": 200,
+      "ok": true,
+      "latencyMs": 130,
+      "content": "ok",
+      "error": null,
+      "bodySample": "{\"id\":\"chatcmpl-d8a4daa2-4061-4f0a-8067-af171341850f\",\"object\":\"chat.completion\",\"created\":1777465191,\"model\":\"llama-3.3-70b-versatile\",\"choices\":[{\"index\":0,\"message\":{\"role\":\"assistant\",\"content\":\"ok\"},\"logprobs\":null,\"finish_reason\":\"stop\"}],\"usage\":{\"queue_time\":0.070477448,\"prompt_tokens\":42,\"prompt_time\":0.009797385,\"completion_tokens\":2,\"completion_time\":0.014081673,\"total_tokens\":44,\"total"
+    },
+    {
+      "provider": "groq",
+      "label": "groq / key-7 / llama-3.3-70b-versatile",
+      "model": "llama-3.3-70b-versatile",
+      "baseUrl": "https://api.groq.com/openai/v1",
+      "status": 200,
+      "ok": true,
+      "latencyMs": 127,
+      "content": "ok",
+      "error": null,
+      "bodySample": "{\"id\":\"chatcmpl-d79fba06-3030-41e4-81a9-5e36e9e46d75\",\"object\":\"chat.completion\",\"created\":1777465191,\"model\":\"llama-3.3-70b-versatile\",\"choices\":[{\"index\":0,\"message\":{\"role\":\"assistant\",\"content\":\"ok\"},\"logprobs\":null,\"finish_reason\":\"stop\"}],\"usage\":{\"queue_time\":0.065023322,\"prompt_tokens\":42,\"prompt_time\":0.003728452,\"completion_tokens\":2,\"completion_time\":0.014192132,\"total_tokens\":44,\"total"
+    },
+    {
+      "provider": "9router",
+      "label": "9router / kr/claude-sonnet-4.5",
+      "model": "kr/claude-sonnet-4.5",
+      "baseUrl": "https://r94p885.9router.com/v1",
+      "status": 200,
+      "ok": true,
+      "latencyMs": 2982,
+      "content": "ok",
+      "error": null,
+      "bodySample": "{\"id\":\"chatcmpl-1777465193916\",\"object\":\"chat.completion\",\"created\":1777465193,\"model\":\"claude-sonnet-4.5\",\"choices\":[{\"index\":0,\"message\":{\"role\":\"assistant\",\"content\":\"ok\"},\"finish_reason\":\"stop\"}],\"usage\":{\"prompt_tokens\":6129,\"completion_tokens\":1,\"total_tokens\":6130}}"
+    },
+    {
+      "provider": "kilo",
+      "label": "kilo / key-1 / bytedance-seed/dola-seed-2.0-pro:free",
+      "model": "bytedance-seed/dola-seed-2.0-pro:free",
+      "baseUrl": "https://api.kilo.ai/api/gateway",
+      "status": 404,
+      "ok": false,
+      "latencyMs": 300,
+      "content": null,
+      "error": "The free period of this model ended. Please use kilo-auto/balanced for affordable inference or kilo-auto/free for limited free inference.",
+      "bodySample": "{\"error\":\"The free period of this model ended. Please use kilo-auto/balanced for affordable inference or kilo-auto/free for limited free inference.\",\"error_type\":\"discontinued_free_model\",\"message\":\"The free period of this model ended. Please use kilo-auto/balanced for affordable inference or kilo-auto/free for limited free inference.\"}"
+    },
+    {
+      "provider": "kilo",
+      "label": "kilo / key-1 / nvidia/nemotron-3-super-120b-a12b:free",
+      "model": "nvidia/nemotron-3-super-120b-a12b:free",
+      "baseUrl": "https://api.kilo.ai/api/gateway",
+      "status": 200,
+      "ok": true,
+      "latencyMs": 9607,
+      "content": "ok",
+      "error": null,
+      "bodySample": "\n         \n\n         \n\n         \n\n         \n\n         \n\n         \n\n         \n\n         \n\n         \n\n         \n\n         \n\n         \n\n         \n\n         \n\n         \n\n         \n\n         \n\n         \n\n         \n\n         \n\n         \n\n         \n{\"id\":\"gen-1777465194-t2SChJjQvRdJtLpO9ox2\",\"object\":\"chat.completion\",\"created\":1777465194,\"model\":\"nvidia/nemotron-3-super-120b-a12b-20230311:free\",\"provide"
+    },
+    {
+      "provider": "kilo",
+      "label": "kilo / key-1 / x-ai/grok-code-fast-1:optimized:free",
+      "model": "x-ai/grok-code-fast-1:optimized:free",
+      "baseUrl": "https://api.kilo.ai/api/gateway",
+      "status": 400,
+      "ok": false,
+      "latencyMs": 292,
+      "content": null,
+      "error": "This model does not support the chat_completions API, please use any of: responses",
+      "bodySample": "{\"error\":\"This model does not support the chat_completions API, please use any of: responses\",\"error_type\":\"api_kind_not_supported\",\"message\":\"This model does not support the chat_completions API, please use any of: responses\"}"
+    },
+    {
+      "provider": "kilo",
+      "label": "kilo / key-1 / kilo-auto/free",
+      "model": "kilo-auto/free",
+      "baseUrl": "https://api.kilo.ai/api/gateway",
+      "status": 200,
+      "ok": true,
+      "latencyMs": 1020,
+      "content": "ok",
+      "error": null,
+      "bodySample": "\n         \n{\"id\":\"gen-1777465204-mTSaDnr5tiHq03sXpRmS\",\"object\":\"chat.completion\",\"created\":1777465204,\"model\":\"inclusionai/ling-2.6-1t-20260423:free\",\"provider\":\"Novita\",\"system_fingerprint\":null,\"choices\":[{\"index\":0,\"logprobs\":null,\"finish_reason\":\"stop\",\"native_finish_reason\":\"stop\",\"message\":{\"role\":\"assistant\",\"content\":\"ok\",\"refusal\":null,\"reasoning\":null}}],\"usage\":{\"prompt_tokens\":25,\"com"
+    },
+    {
+      "provider": "kilo",
+      "label": "kilo / key-1 / openrouter/free",
+      "model": "openrouter/free",
+      "baseUrl": "https://api.kilo.ai/api/gateway",
+      "status": 200,
+      "ok": true,
+      "latencyMs": 3155,
+      "content": "ok\n",
+      "error": null,
+      "bodySample": "\n         \n\n         \n\n         \n\n         \n\n         \n\n         \n{\"id\":\"gen-1777465205-17tKa4dTWaYjcr2201s6\",\"object\":\"chat.completion\",\"created\":1777465205,\"model\":\"google/gemma-3-4b-it:free\",\"provider\":\"Google AI Studio\",\"system_fingerprint\":null,\"choices\":[{\"index\":0,\"logprobs\":null,\"finish_reason\":\"stop\",\"native_finish_reason\":\"STOP\",\"message\":{\"role\":\"assistant\",\"content\":\"ok\\n\",\"refusal\":nu"
+    },
+    {
+      "provider": "kilo",
+      "label": "kilo / key-2 / kilo-auto/free",
+      "model": "kilo-auto/free",
+      "baseUrl": "https://api.kilo.ai/api/gateway",
+      "status": 200,
+      "ok": true,
+      "latencyMs": 1399,
+      "content": "ok",
+      "error": null,
+      "bodySample": "\n         \n\n         \n{\"id\":\"gen-1777465208-cNYKCC82YkvuX8dhXlC8\",\"object\":\"chat.completion\",\"created\":1777465208,\"model\":\"inclusionai/ling-2.6-1t-20260423:free\",\"provider\":\"Novita\",\"system_fingerprint\":null,\"choices\":[{\"index\":0,\"logprobs\":null,\"finish_reason\":\"stop\",\"native_finish_reason\":\"stop\",\"message\":{\"role\":\"assistant\",\"content\":\"ok\",\"refusal\":null,\"reasoning\":null}}],\"usage\":{\"prompt_toke"
+    },
+    {
+      "provider": "kilo",
+      "label": "kilo / key-3 / kilo-auto/free",
+      "model": "kilo-auto/free",
+      "baseUrl": "https://api.kilo.ai/api/gateway",
+      "status": 200,
+      "ok": true,
+      "latencyMs": 1190,
+      "content": "ok",
+      "error": null,
+      "bodySample": "\n         \n\n         \n{\"id\":\"gen-1777465210-bNound2uIAvNrSoawvHV\",\"object\":\"chat.completion\",\"created\":1777465210,\"model\":\"inclusionai/ling-2.6-1t-20260423:free\",\"provider\":\"Novita\",\"system_fingerprint\":null,\"choices\":[{\"index\":0,\"logprobs\":null,\"finish_reason\":\"stop\",\"native_finish_reason\":\"stop\",\"message\":{\"role\":\"assistant\",\"content\":\"ok\",\"refusal\":null,\"reasoning\":null}}],\"usage\":{\"prompt_toke"
+    },
+    {
+      "provider": "kilo",
+      "label": "kilo / key-4 / kilo-auto/free",
+      "model": "kilo-auto/free",
+      "baseUrl": "https://api.kilo.ai/api/gateway",
+      "status": 200,
+      "ok": true,
+      "latencyMs": 1434,
+      "content": "First, the user said: \"reply with exactly one word: ok\". This means I need to respond with only one word, and that word should be \"ok\".\n\nThe instruction is clear: \"reply with exactly one word: ok\". So",
+      "error": null,
+      "bodySample": "{\"id\":\"gen-1777465211-JZkt5XhjsAGO3EWgFbGw\",\"object\":\"chat.completion\",\"created\":1777465211,\"model\":\"stepfun/step-3.5-flash:free\",\"provider\":\"StepFun\",\"system_fingerprint\":null,\"choices\":[{\"index\":0,\"logprobs\":null,\"finish_reason\":\"length\",\"native_finish_reason\":\"length\",\"message\":{\"role\":\"assistant\",\"content\":null,\"refusal\":null,\"reasoning\":\"First, the user said: \\\"reply with exactly one word: ok"
+    },
+    {
+      "provider": "nvidia",
+      "label": "nvidia / nvidia/nemotron-3-super-120b-a12b",
+      "model": "nvidia/nemotron-3-super-120b-a12b",
+      "baseUrl": "https://integrate.api.nvidia.com/v1",
+      "status": 200,
+      "ok": true,
+      "latencyMs": 785,
+      "content": "ok",
+      "error": null,
+      "bodySample": "{\"id\":\"chatcmpl-9d35207ba02bd701\",\"object\":\"chat.completion\",\"created\":1777465213,\"model\":\"nvidia/nemotron-3-super-120b-a12b\",\"choices\":[{\"index\":0,\"message\":{\"role\":\"assistant\",\"content\":\"ok\",\"refusal\":null,\"annotations\":null,\"audio\":null,\"function_call\":null,\"tool_calls\":[],\"reasoning\":\"User wants exactly one word: \\\"ok\\\". Must output exactly that, no extra spaces or punctuation. So just \\\"ok\\\"."
+    },
+    {
+      "provider": "nvidia",
+      "label": "nvidia / minimax/minimax-m2.5",
+      "model": "minimax/minimax-m2.5",
+      "baseUrl": "https://integrate.api.nvidia.com/v1",
+      "status": 404,
+      "ok": false,
+      "latencyMs": 102,
+      "content": null,
+      "error": null,
+      "bodySample": "404 page not found\n"
+    },
+    {
+      "provider": "nvidia",
+      "label": "nvidia / moonshotai/kimi-k2.5",
+      "model": "moonshotai/kimi-k2.5",
+      "baseUrl": "https://integrate.api.nvidia.com/v1",
+      "status": 200,
+      "ok": true,
+      "latencyMs": 1256,
+      "content": " ok",
+      "error": null,
+      "bodySample": "{\"id\":\"chatcmpl-a427aac112b60fc6\",\"object\":\"chat.completion\",\"created\":1777465214,\"model\":\"moonshotai/kimi-k2.5\",\"choices\":[{\"index\":0,\"message\":{\"role\":\"assistant\",\"content\":\" ok\",\"refusal\":null,\"annotations\":null,\"audio\":null,\"function_call\":null,\"tool_calls\":[],\"reasoning\":\" The user wants me to reply with exactly one word: \\\"ok\\\". I should not add any punctuation, extra spaces, or additional t"
+    },
+    {
+      "provider": "nvidia",
+      "label": "nvidia / qwen/qwen3.5-397b-a17b",
+      "model": "qwen/qwen3.5-397b-a17b",
+      "baseUrl": "https://integrate.api.nvidia.com/v1",
+      "status": 0,
+      "ok": false,
+      "latencyMs": 30010,
+      "content": null,
+      "error": "This operation was aborted",
+      "bodySample": null
+    },
+    {
+      "provider": "nvidia",
+      "label": "nvidia / nvidia/llama-3.3-nemotron-super-49b-v1.5",
+      "model": "nvidia/llama-3.3-nemotron-super-49b-v1.5",
+      "baseUrl": "https://integrate.api.nvidia.com/v1",
+      "status": 200,
+      "ok": true,
+      "latencyMs": 3617,
+      "content": "\nOkay, the user wants me to reply with exactly one word: \"ok\". Let me make sure I understand the query correctly. They provided a simple instruction, so the response should be straightforward. I need ",
+      "error": null,
+      "bodySample": "{\"id\":\"chatcmpl-a522108944b05b9f\",\"object\":\"chat.completion\",\"created\":1777465245,\"model\":\"nvidia/llama-3.3-nemotron-super-49b-v1.5\",\"choices\":[{\"index\":0,\"message\":{\"role\":\"assistant\",\"content\":null,\"refusal\":null,\"annotations\":null,\"audio\":null,\"function_call\":null,\"tool_calls\":[],\"reasoning\":\"\\nOkay, the user wants me to reply with exactly one word: \\\"ok\\\". Let me make sure I understand the que"
+    },
+    {
+      "provider": "nvidia",
+      "label": "nvidia / mistralai/mistral-large-3-675b-instruct-2512",
+      "model": "mistralai/mistral-large-3-675b-instruct-2512",
+      "baseUrl": "https://integrate.api.nvidia.com/v1",
+      "status": 0,
+      "ok": false,
+      "latencyMs": 30010,
+      "content": null,
+      "error": "This operation was aborted",
+      "bodySample": null
+    },
+    {
+      "provider": "nvidia",
+      "label": "nvidia / zai/glm-5",
+      "model": "zai/glm-5",
+      "baseUrl": "https://integrate.api.nvidia.com/v1",
+      "status": 404,
+      "ok": false,
+      "latencyMs": 128,
+      "content": null,
+      "error": null,
+      "bodySample": "404 page not found\n"
+    },
+    {
+      "provider": "opencode",
+      "label": "opencode / opencode-zen/big-pickle",
+      "model": "opencode-zen/big-pickle",
+      "baseUrl": "http://localhost:3100",
+      "status": 0,
+      "ok": false,
+      "latencyMs": 12,
+      "content": null,
+      "error": "fetch failed",
+      "bodySample": null
+    },
+    {
+      "provider": "opencode",
+      "label": "opencode / go/minimax-m2.7",
+      "model": "go/minimax-m2.7",
+      "baseUrl": "http://localhost:3100",
+      "status": 0,
+      "ok": false,
+      "latencyMs": 10,
+      "content": null,
+      "error": "fetch failed",
+      "bodySample": null
+    }
+  ],
+  "verdicts": {
+    "ollama-cloud": {
+      "verdict": "verified",
+      "passing": 1,
+      "total": 1,
+      "workingModels": [
+        "deepseek-v4-pro:cloud"
+      ]
+    },
+    "groq": {
+      "verdict": "partial",
+      "passing": 6,
+      "total": 7,
+      "workingModels": [
+        "llama-3.3-70b-versatile",
+        "llama-3.3-70b-versatile",
+        "llama-3.3-70b-versatile",
+        "llama-3.3-70b-versatile",
+        "llama-3.3-70b-versatile",
+        "llama-3.3-70b-versatile"
+      ]
+    },
+    "9router": {
+      "verdict": "verified",
+      "passing": 1,
+      "total": 1,
+      "workingModels": [
+        "kr/claude-sonnet-4.5"
+      ]
+    },
+    "kilo": {
+      "verdict": "partial",
+      "passing": 6,
+      "total": 8,
+      "workingModels": [
+        "nvidia/nemotron-3-super-120b-a12b:free",
+        "kilo-auto/free",
+        "openrouter/free",
+        "kilo-auto/free",
+        "kilo-auto/free",
+        "kilo-auto/free"
+      ]
+    },
+    "nvidia": {
+      "verdict": "partial",
+      "passing": 3,
+      "total": 7,
+      "workingModels": [
+        "nvidia/nemotron-3-super-120b-a12b",
+        "moonshotai/kimi-k2.5",
+        "nvidia/llama-3.3-nemotron-super-49b-v1.5"
+      ]
+    },
+    "opencode": {
+      "verdict": "failed",
+      "passing": 0,
+      "total": 2,
+      "workingModels": []
+    }
+  },
+  "runAt": "2026-04-29T12:21:19.420Z"
+}

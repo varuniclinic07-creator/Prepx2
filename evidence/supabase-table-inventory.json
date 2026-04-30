@@ -1,0 +1,211 @@
+{
+  "url": "http://supabase.173-185-79-174.sslip.io:47882",
+  "results": [
+    {
+      "table": "activity_log",
+      "status": 200,
+      "verdict": "exists"
+    },
+    {
+      "table": "agent_tasks",
+      "status": 200,
+      "verdict": "exists"
+    },
+    {
+      "table": "ai_tutors",
+      "status": 200,
+      "verdict": "exists"
+    },
+    {
+      "table": "astra_scripts",
+      "status": 200,
+      "verdict": "exists"
+    },
+    {
+      "table": "battle_participants",
+      "status": 200,
+      "verdict": "exists"
+    },
+    {
+      "table": "battle_royale_events",
+      "status": 200,
+      "verdict": "exists"
+    },
+    {
+      "table": "battle_royale_participants",
+      "status": 200,
+      "verdict": "exists"
+    },
+    {
+      "table": "coin_transactions",
+      "status": 200,
+      "verdict": "exists"
+    },
+    {
+      "table": "comfyui_jobs",
+      "status": 404,
+      "verdict": "MISSING"
+    },
+    {
+      "table": "comfyui_settings",
+      "status": 404,
+      "verdict": "MISSING"
+    },
+    {
+      "table": "daily_dhwani",
+      "status": 200,
+      "verdict": "exists"
+    },
+    {
+      "table": "daily_plans",
+      "status": 200,
+      "verdict": "exists"
+    },
+    {
+      "table": "district_topics",
+      "status": 200,
+      "verdict": "exists"
+    },
+    {
+      "table": "districts",
+      "status": 200,
+      "verdict": "exists"
+    },
+    {
+      "table": "essay_colosseum_matches",
+      "status": 200,
+      "verdict": "exists"
+    },
+    {
+      "table": "essay_colosseum_submissions",
+      "status": 200,
+      "verdict": "exists"
+    },
+    {
+      "table": "feature_flags",
+      "status": 200,
+      "verdict": "exists"
+    },
+    {
+      "table": "isa_contracts",
+      "status": 200,
+      "verdict": "exists"
+    },
+    {
+      "table": "isa_payments",
+      "status": 200,
+      "verdict": "exists"
+    },
+    {
+      "table": "mains_attempts",
+      "status": 200,
+      "verdict": "exists"
+    },
+    {
+      "table": "nudge_log",
+      "status": 200,
+      "verdict": "exists"
+    },
+    {
+      "table": "quiz_attempts",
+      "status": 200,
+      "verdict": "exists"
+    },
+    {
+      "table": "quizzes",
+      "status": 200,
+      "verdict": "exists"
+    },
+    {
+      "table": "squad_members",
+      "status": 500,
+      "verdict": "status-500"
+    },
+    {
+      "table": "squads",
+      "status": 200,
+      "verdict": "exists"
+    },
+    {
+      "table": "streak_battles",
+      "status": 200,
+      "verdict": "exists"
+    },
+    {
+      "table": "subscriptions",
+      "status": 200,
+      "verdict": "exists"
+    },
+    {
+      "table": "territory_ownership",
+      "status": 200,
+      "verdict": "exists"
+    },
+    {
+      "table": "territory_wars",
+      "status": 200,
+      "verdict": "exists"
+    },
+    {
+      "table": "topics",
+      "status": 200,
+      "verdict": "exists"
+    },
+    {
+      "table": "tutor_subscriptions",
+      "status": 200,
+      "verdict": "exists"
+    },
+    {
+      "table": "user_balances",
+      "status": 200,
+      "verdict": "exists"
+    },
+    {
+      "table": "user_cohorts",
+      "status": 200,
+      "verdict": "exists"
+    },
+    {
+      "table": "user_notifications",
+      "status": 200,
+      "verdict": "exists"
+    },
+    {
+      "table": "user_office_ranks",
+      "status": 200,
+      "verdict": "exists"
+    },
+    {
+      "table": "user_predictions",
+      "status": 200,
+      "verdict": "exists"
+    },
+    {
+      "table": "user_sessions",
+      "status": 200,
+      "verdict": "exists"
+    },
+    {
+      "table": "user_telegrams",
+      "status": 200,
+      "verdict": "exists"
+    },
+    {
+      "table": "user_weak_areas",
+      "status": 200,
+      "verdict": "exists"
+    },
+    {
+      "table": "users",
+      "status": 200,
+      "verdict": "exists"
+    },
+    {
+      "table": "white_label_tenants",
+      "status": 200,
+      "verdict": "exists"
+    }
+  ],
+  "runAt": "2026-04-29T12:23:59.558Z"
+}

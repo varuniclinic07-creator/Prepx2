@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { supabase } from '@/lib/supabase';
+import { createClient } from '@/lib/supabase-browser';
 import Link from 'next/link';
 
 export default function SignupPage() {
@@ -14,6 +14,7 @@ export default function SignupPage() {
     e.preventDefault();
     setLoading(true);
     setMessage('');
+    const supabase = createClient();
     const { error } = await supabase.auth.signUp({ email, password, options: { emailRedirectTo: `${window.location.origin}/auth/callback` } });
     setLoading(false);
     if (error) setMessage(error.message);
@@ -21,6 +22,7 @@ export default function SignupPage() {
   };
 
   const handleGoogle = async () => {
+    const supabase = createClient();
     await supabase.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: `${window.location.origin}/auth/callback` } });
   };
 

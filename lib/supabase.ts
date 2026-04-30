@@ -1,11 +1,21 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { UserProfile, DailyPlan, Topic, Quiz, QuizAttempt, WeakArea } from '../types';
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
 if (!supabaseUrl || !supabaseAnonKey) {
-  console.warn('Missing NEXT_PUBLIC_SUPABASE_URL or NEXT_PUBLIC_SUPABASE_ANON_KEY — Supabase calls will fail at runtime');
+  // Fail loudly in production. Silent fallbacks here previously caused
+  // every Supabase call to fail at runtime with a confusing 4xx instead
+  // of a startup error (FINDING-A2: scaffold mock/fallback hardening).
+  if (process.env.NODE_ENV === 'production') {
+    throw new Error(
+      'Missing NEXT_PUBLIC_SUPABASE_URL or NEXT_PUBLIC_SUPABASE_ANON_KEY in production'
+    );
+  }
+  console.warn(
+    '[lib/supabase] Missing NEXT_PUBLIC_SUPABASE_URL or NEXT_PUBLIC_SUPABASE_ANON_KEY — using dev placeholder, calls will fail'
+  );
 }
 
 const supabase: SupabaseClient = createClient(

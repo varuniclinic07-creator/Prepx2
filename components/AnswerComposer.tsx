@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { createMainsAttempt, getMainsAttempts } from '@/lib/supabase';
-import { supabase } from '@/lib/supabase';
+import { createClient } from '@/lib/supabase-browser';
 import type { MainsScores } from '@/lib/mains-evaluator';
 
 interface MainsAttempt {
@@ -46,7 +46,7 @@ export function AnswerComposer({ topicId, prompt }: { topicId: string; prompt: s
   }, [active, submitted]);
 
   const loadHistory = useCallback(async () => {
-    const { data: { user } } = await supabase.auth.getUser();
+    const { data: { user } } = await createClient().auth.getUser();
     if (!user) return;
     const rows = await getMainsAttempts(user.id, 5);
     setHistory(rows.map((r: any) => ({
@@ -70,7 +70,7 @@ export function AnswerComposer({ topicId, prompt }: { topicId: string; prompt: s
     setSubmitted(true);
     if (intervalRef.current) clearInterval(intervalRef.current);
 
-    const { data: { user } } = await supabase.auth.getUser();
+    const { data: { user } } = await createClient().auth.getUser();
     const userId = user?.id;
 
     try {

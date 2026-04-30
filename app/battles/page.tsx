@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { supabase } from '@/lib/supabase';
+import { createClient } from '@/lib/supabase-browser';
 
 interface Battle {
   id: string;
@@ -32,6 +32,7 @@ export default function BattlesPage() {
   const [error, setError] = useState('');
 
   const fetchBattles = async () => {
+    const supabase = createClient();
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
 

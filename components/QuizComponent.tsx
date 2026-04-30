@@ -1,7 +1,8 @@
 'use client';
 
 import { useState } from 'react';
-import { supabase, createWeakArea, createQuizAttempt } from '@/lib/supabase';
+import { createWeakArea, createQuizAttempt } from '@/lib/supabase';
+import { createClient } from '@/lib/supabase-browser';
 
 export function QuizComponent({ quizId, questions }: { quizId: string; questions: any[] }) {
   const [answers, setAnswers] = useState<Record<string, string>>({});
@@ -21,7 +22,7 @@ export function QuizComponent({ quizId, questions }: { quizId: string; questions
     setScore(correct);
     setSubmitted(true);
 
-    const userId = (await supabase.auth.getUser()).data.user?.id;
+    const userId = (await createClient().auth.getUser()).data.user?.id;
     if (userId) {
       await createQuizAttempt(userId, quizId, answers, { silly: 0, concept: 0, time: 0 });
       fetch('/api/coins/award', {

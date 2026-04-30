@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { supabase } from '@/lib/supabase';
+import { createClient } from '@/lib/supabase-browser';
 import { broadcastMessage } from '@/lib/telegram-bot';
 
 export default function AdminBotPage() {
@@ -10,7 +10,7 @@ export default function AdminBotPage() {
   const [status, setStatus] = useState('');
 
   useEffect(() => {
-    supabase.from('user_telegrams').select('*', { count: 'exact', head: true }).then(({ count }) => setCount(count || 0));
+    createClient().from('user_telegrams').select('*', { count: 'exact', head: true }).then(({ count }) => setCount(count || 0));
   }, []);
 
   const handleBroadcast = async () => {

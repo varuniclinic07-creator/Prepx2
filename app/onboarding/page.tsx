@@ -1,6 +1,6 @@
 'use client';
 import { useState, useEffect } from 'react';
-import { supabase } from '@/lib/supabase';
+import { createClient } from '@/lib/supabase-browser';
 import { createSession } from '@/lib/agents/hermes';
 import { useRouter } from 'next/navigation';
 
@@ -47,6 +47,7 @@ export default function OnboardingPage() {
     setSaving(true);
 
     try {
+      const supabase = createClient();
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
         await supabase.from('users').update({ baseline_score: correct, preferred_language: prefLanguage }).eq('id', user.id);

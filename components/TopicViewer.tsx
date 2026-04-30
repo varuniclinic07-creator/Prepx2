@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { transition } from '@/lib/agents/hermes';
-import { supabase } from '@/lib/supabase';
+import { createClient } from '@/lib/supabase-browser';
 
 type Lang = 'en' | 'hi';
 
@@ -22,6 +22,7 @@ export function TopicViewer({ topic }: { topic: { id: string; title: string; con
 
   useEffect(() => {
     async function markStudying() {
+      const supabase = createClient();
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
         await transition(supabase, user.id, 'studying', { topicId: topic.id });

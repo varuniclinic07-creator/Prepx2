@@ -1,0 +1,42 @@
+{
+  "runAt": "2026-04-30T02:35:20.388Z",
+  "supabaseUrl": "http://supabase.173-185-79-174.sslip.io:47882",
+  "appUrl": "http://localhost:3000",
+  "userAId": "0c6a91f3-0321-4672-a31b-613ca7a44ec2",
+  "userAEmail": "slice-pw-1777516520549@example.com",
+  "cookies_after_login": [
+    {
+      "name": "sb-supabase-auth-token",
+      "domain": "localhost",
+      "path": "/",
+      "httpOnly": false,
+      "sameSite": "Lax",
+      "valueLen": 2395,
+      "valuePrefix": "base64-eyJhY2Nlc3NfdG9rZ"
+    }
+  ],
+  "b4_cookieCountAfterLogin": 1,
+  "b4_hasSsrCookieShape": true,
+  "b4_hasLegacyCookieShape": false,
+  "b4_adminFetchStatus": 200,
+  "b4_adminFinalUrl": "http://localhost:3000/",
+  "b4_afterReloadUrl": "http://localhost:3000/",
+  "b5_tab2BeforeLogoutUrl": "http://localhost:3000/",
+  "cookies_before_logout": [
+    {
+      "name": "sb-supabase-auth-token",
+      "domain": "localhost",
+      "path": "/",
+      "httpOnly": false,
+      "sameSite": "Lax",
+      "valueLen": 2397,
+      "valuePrefix": "base64-eyJhY2Nlc3NfdG9rZ"
+    }
+  ],
+  "b5_cookieCountBeforeLogout": 1,
+  "b5_logoutStatus": 302,
+  "cookies_after_logout": [],
+  "b5_cookieCountAfterLogout": 0,
+  "b5_tab2FinalUrl": "http://localhost:3000/login",
+  "b5_tab2AfterReloadUrl": "http://localhost:3000/login"
+}

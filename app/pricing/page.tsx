@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { supabase } from '@/lib/supabase';
+import { createClient } from '@/lib/supabase-browser';
 
 interface Plan {
   name: string;
@@ -65,6 +65,7 @@ export default function PricingPage() {
     }
     setBusy(true);
     try {
+      const supabase = createClient();
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
         setToast({ type: 'error', message: 'Please log in to subscribe.' });

@@ -1,7 +1,7 @@
 'use client';
 import { useState, useEffect, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { supabase } from '@/lib/supabase';
+import { createClient } from '@/lib/supabase-browser';
 import { ALL_SUBJECTS } from '@/lib/agents/subjects';
 import { generateTopicContent } from '@/lib/content-agent';
 
@@ -17,12 +17,12 @@ function ContentPageInner() {
   useEffect(() => { setSubject(preselected); loadCount(preselected); loadTopics(); }, [preselected]);
 
   const loadCount = async (subj: string) => {
-    const { count } = await supabase.from('topics').select('id', { count: 'exact' }).eq('subject', subj);
+    const { count } = await createClient().from('topics').select('id', { count: 'exact' }).eq('subject', subj);
     setTopicCount(count ?? 0);
   };
 
   const loadTopics = async () => {
-    const { data } = await supabase.from('topics').select('id, title, subject, created_at').order('created_at', { ascending: false }).limit(200);
+    const { data } = await createClient().from('topics').select('id, title, subject, created_at').order('created_at', { ascending: false }).limit(200);
     setTopics(data || []);
   };
 
@@ -42,7 +42,7 @@ function ContentPageInner() {
       const tag = `${subj.syllabusPrefix}-L${String(nextNum).padStart(2, '0')}`;
       const title = `${subj.displayName} Topic ${nextNum}`;
       const content = await generateTopicContent(tag, title);
-      const { error } = await supabase.from('topics').insert({ title, subject, syllabus_tag: tag, content, readability_score: 70,  });
+      const { error } = await createClient().from('topics').insert({ title, subject, syllabus_tag: tag, content, readability_score: 70,  });
       if (error) throw error;
       setTopicCount(c => c + 1);
       setResult(`Seeded 1 topic for ${subject} (${tag}). Total: ${topicCount + 1}`);
@@ -62,7 +62,7 @@ function ContentPageInner() {
         const tag = `${subj.syllabusPrefix}-L${String(startNum + i).padStart(2, '0')}`;
         const title = `${subj.displayName} Topic ${startNum + i}`;
         const content = await generateTopicContent(tag, title);
-        const { error } = await supabase.from('topics').insert({ title, subject, syllabus_tag: tag, content, readability_score: 70,  });
+        const { error } = await createClient().from('topics').insert({ title, subject, syllabus_tag: tag, content, readability_score: 70,  });
         if (!error) seeded++;
       }
       setTopicCount(c => c + seeded);

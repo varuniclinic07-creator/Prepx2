@@ -1,7 +1,8 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { createDailyPlan, updatePlanStatus, supabase } from '@/lib/supabase';
+import { createDailyPlan, updatePlanStatus } from '@/lib/supabase';
+import { createClient } from '@/lib/supabase-browser';
 import { QuizTask } from '../types';
 import { subscribeToTable } from '@/lib/realtime';
 
@@ -33,6 +34,7 @@ export function DailyPlan({ userId, initialPlan }: DailyPlanProps) {
     }
     loadPlan();
     let isMounted = true;
+    const supabase = createClient();
     const unsubscribe = subscribeToTable(supabase, 'daily_plans', `user_id=eq.${userId}`, (payload: any) => {
       if (!isMounted) return;
       if (payload.eventType === 'UPDATE' && payload.new?.user_id === userId) {

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { supabase } from '@/lib/supabase';
+import { createClient } from '@/lib/supabase-browser';
 import { subscribeToTable, subscribeToAll } from '@/lib/realtime';
 
 interface Q {
@@ -39,6 +39,8 @@ export default function BattleRoyalePage() {
   const [loading, setLoading] = useState(true);
   const [selectedOption, setSelectedOption] = useState<string | null>(null);
   const [feedback, setFeedback] = useState<string | null>(null);
+
+  const supabase = createClient();
 
   const fetchEvents = useCallback(async () => {
     const res = await fetch('/api/battle-royale?type=active', { credentials: 'same-origin' });

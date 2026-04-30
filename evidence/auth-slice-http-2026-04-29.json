@@ -1,0 +1,95 @@
+{
+  "runAt": "2026-04-29T23:52:05.254Z",
+  "url": "http://supabase.173-185-79-174.sslip.io:47882",
+  "summary": {
+    "total": 11,
+    "passed": 11,
+    "failed": 0
+  },
+  "checks": [
+    {
+      "id": "b1.userA.admin_create",
+      "description": "admin API creates and confirms userA",
+      "pass": true,
+      "status": 200,
+      "detail": null
+    },
+    {
+      "id": "b1.userB.admin_create",
+      "description": "admin API creates and confirms userB",
+      "pass": true,
+      "status": 200,
+      "detail": null
+    },
+    {
+      "id": "b1.userA.signin",
+      "description": "userA password signin returns JWT + refresh",
+      "pass": true,
+      "status": 200,
+      "detail": null
+    },
+    {
+      "id": "b1.userB.signin",
+      "description": "userB password signin returns JWT + refresh",
+      "pass": true,
+      "status": 200,
+      "detail": null
+    },
+    {
+      "id": "b1.userA.users_row_present",
+      "description": "public.users row exists for userA after signup (handle_new_user trigger)",
+      "pass": true,
+      "status": 200,
+      "latencyMs": 269,
+      "detail": null
+    },
+    {
+      "id": "b2.userA.read_own",
+      "description": "userA SELECTs own users row (RLS allow)",
+      "pass": true,
+      "status": 200,
+      "latencyMs": 238,
+      "detail": null
+    },
+    {
+      "id": "b3.userA.read_userB_denied",
+      "description": "userA SELECT of userB row returns empty (RLS deny)",
+      "pass": true,
+      "status": 200,
+      "latencyMs": 245,
+      "detail": null
+    },
+    {
+      "id": "b6a.refresh_grants_new_jwt",
+      "description": "POST /token?grant_type=refresh_token returns a NEW access token",
+      "pass": true,
+      "status": 200,
+      "latencyMs": 387,
+      "detail": null
+    },
+    {
+      "id": "b6a.new_jwt_authenticates",
+      "description": "new access token authenticates a PostgREST request",
+      "pass": true,
+      "status": 200,
+      "latencyMs": 236,
+      "detail": null
+    },
+    {
+      "id": "b6b.invalid_refresh_denied",
+      "description": "invalid refresh token returns 4xx (no infinite-refresh path)",
+      "pass": true,
+      "status": 400,
+      "latencyMs": 236,
+      "detail": null
+    },
+    {
+      "id": "b6b.invalid_access_denied",
+      "description": "invalid access token on PostgREST returns 401",
+      "pass": true,
+      "status": 401,
+      "latencyMs": 241,
+      "detail": null
+    }
+  ]
+}

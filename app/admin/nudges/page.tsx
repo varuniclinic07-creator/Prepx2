@@ -1,6 +1,6 @@
 'use client';
 import { useState, useEffect } from 'react';
-import { supabase } from '@/lib/supabase';
+import { createClient } from '@/lib/supabase-browser';
 
 export default function AdminNudgesPage() {
   const [nudges, setNudges] = useState<any[]>([]);
@@ -14,7 +14,7 @@ export default function AdminNudgesPage() {
   useEffect(() => { loadNudges(); }, []);
 
   const loadNudges = async () => {
-    const { data } = await supabase.from('nudge_log').select('*').order('scheduled_at', { ascending: false }).limit(100);
+    const { data } = await createClient().from('nudge_log').select('*').order('scheduled_at', { ascending: false }).limit(100);
     setNudges(data || []);
   };
 
@@ -27,6 +27,7 @@ export default function AdminNudgesPage() {
 
   const createNudge = async (e: React.FormEvent) => {
     e.preventDefault(); setSending(true);
+    const supabase = createClient();
     const { error } = await supabase.from('nudge_log').insert({
       nudge_type: 'admin_broadcast', channel: 'push', status: 'pending',
       scheduled_at: scheduledAt ? new Date(scheduledAt).toISOString() : new Date().toISOString(), user_id: target === 'all' ? null : undefined,

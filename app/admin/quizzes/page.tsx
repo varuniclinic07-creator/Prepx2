@@ -3,7 +3,7 @@ import { useState, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { generateAndSaveQuiz, generateQuizzesForSubject } from '@/lib/quiz-generator';
 import { ALL_SUBJECTS } from '@/lib/agents/subjects';
-import { supabase } from '@/lib/supabase';
+import { createClient } from '@/lib/supabase-browser';
 
 function QuizzesPageInner() {
   const searchParams = useSearchParams();
@@ -14,7 +14,7 @@ function QuizzesPageInner() {
   const [quizzes, setQuizzes] = useState<any[]>([]);
 
   const loadQuizzes = async () => {
-    const { data } = await supabase.from('quizzes').select('id, topic_id, created_at').order('created_at', { ascending: false }).limit(200);
+    const { data } = await createClient().from('quizzes').select('id, topic_id, created_at').order('created_at', { ascending: false }).limit(200);
     setQuizzes(data || []);
   };
 
