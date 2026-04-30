@@ -83,8 +83,10 @@ USER nextjs
 
 EXPOSE 3000
 
-# Health check for orchestrators (Coolify, Docker Swarm, K8s)
-HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-    CMD wget --quiet --tries=1 --spider http://localhost:3000/api/health || exit 1
+# Health check for orchestrators (Coolify, Docker Swarm, K8s).
+# Use $PORT so the probe follows the orchestrator-assigned port (Coolify
+# overrides PORT at runtime — e.g. 3091 — so a hardcoded 3000 fails).
+HEALTHCHECK --interval=30s --timeout=10s --start-period=15s --retries=3 \
+    CMD wget --quiet --tries=1 --spider "http://localhost:${PORT:-3000}/api/health" || exit 1
 
 CMD ["node", "server.js"]
