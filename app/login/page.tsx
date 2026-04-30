@@ -1,29 +1,53 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { createClient } from '@/lib/supabase-browser';
 import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
+  const searchParams = useSearchParams();
+
+  // Surface OAuth callback errors (e.g. ?error=access_denied)
+  useEffect(() => {
+    const err = searchParams.get('error');
+    if (err) setMessage(err);
+  }, [searchParams]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setMessage('');
-    const supabase = createClient();
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
-    setLoading(false);
-    if (error) setMessage(error.message);
-    else window.location.href = '/';
+    try {
+      const supabase = createClient();
+      const { error } = await supabase.auth.signInWithPassword({ email, password });
+      if (error) {
+        setLoading(false);
+        setMessage(error.message);
+        return;
+      }
+      window.location.href = '/';
+    } catch (err) {
+      setLoading(false);
+      setMessage(err instanceof Error ? err.message : 'Network error. Please try again.');
+    }
   };
 
   const handleGoogle = async () => {
-    const supabase = createClient();
-    await supabase.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: `${window.location.origin}/auth/callback` } });
+    try {
+      const supabase = createClient();
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: { redirectTo: `${window.location.origin}/auth/callback` },
+      });
+      if (error) setMessage(error.message);
+    } catch (err) {
+      setMessage(err instanceof Error ? err.message : 'OAuth failed. Please try again.');
+    }
   };
 
   return (
@@ -33,11 +57,11 @@ export default function LoginPage() {
         <p className="text-slate-400 text-sm mt-1">Sign in to continue your journey</p>
       </div>
 
-      {message && <div className="bg-red-500/10 border border-red-500/20 text-red-400 text-sm p-3 rounded-lg">{message}</div>}
+      {message && <div role="alert" className="bg-red-500/10 border border-red-500/20 text-red-400 text-sm p-3 rounded-lg">{message}</div>}
 
       <form onSubmit={handleLogin} className="space-y-4">
-        <input type="email" placeholder="Email" value={email} onChange={e => setEmail(e.target.value)} className="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-3 text-slate-100 placeholder-slate-500 focus:outline-none focus:border-emerald-500" required />
-        <input type="password" placeholder="Password" value={password} onChange={e => setPassword(e.target.value)} className="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-3 text-slate-100 placeholder-slate-500 focus:outline-none focus:border-emerald-500" required />
+        <input type="email" autoComplete="email" placeholder="Email" value={email} onChange={e => setEmail(e.target.value)} className="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-3 text-slate-100 placeholder-slate-500 focus:outline-none focus:border-emerald-500" required />
+        <input type="password" autoComplete="current-password" placeholder="Password" value={password} onChange={e => setPassword(e.target.value)} className="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-3 text-slate-100 placeholder-slate-500 focus:outline-none focus:border-emerald-500" required />
         <button type="submit" disabled={loading} className="w-full py-3 bg-emerald-500 hover:bg-emerald-600 disabled:opacity-50 text-slate-950 font-bold rounded-xl transition">{loading ? 'Signing in...' : 'Sign In'}</button>
       </form>
 

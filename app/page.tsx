@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase-server';
 import { DailyPlan } from '../components/DailyPlan';
+import { generateDailyPlan } from '@/lib/plan-generator';
 import { redirect } from 'next/navigation';
 
 async function DashboardStats({ userId, profile }: { userId: string; profile: any }) {
@@ -35,15 +36,16 @@ export default async function Dashboard() {
   // If no plan or still using all-topic-001 static fallback, regenerate
   const isStaticFallback = plan && plan.tasks && plan.tasks.length > 0 && plan.tasks.every((t: any) => t.topic_id === 'topic-001');
   if (!plan || isStaticFallback) {
-    const res = await fetch(`${process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'http://localhost:3000'}/api/daily-plan/generate`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      cache: 'no-store',
-    });
-    if (res.ok) {
-      const { plan: generated } = await res.json();
-      plan = generated;
-    }
+    const tasks = await generateDailyPlan(user.id);
+    const { data: upserted } = await supabase
+      .from('daily_plans')
+      .upsert(
+        { user_id: user.id, plan_date: today, tasks, status: 'pending' },
+        { onConflict: 'user_id,plan_date' }
+      )
+      .select()
+      .single();
+    if (upserted) plan = upserted;
   }
 
   return (

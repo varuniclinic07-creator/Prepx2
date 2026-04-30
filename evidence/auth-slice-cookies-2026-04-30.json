@@ -1,35 +1,34 @@
 {
-  "runAt": "2026-04-30T02:35:20.388Z",
-  "supabaseUrl": "http://supabase.173-185-79-174.sslip.io:47882",
+  "runAt": "2026-04-30T23:48:27.818Z",
+  "supabaseUrl": "https://vbddpwxbijwuarmrexme.supabase.co",
   "appUrl": "http://localhost:3000",
-  "userAId": "0c6a91f3-0321-4672-a31b-613ca7a44ec2",
-  "userAEmail": "slice-pw-1777516520549@example.com",
+  "userAId": "9d25646b-7146-488b-822a-e07b27fadf51",
+  "userAEmail": "slice-pw-1777592907865@example.com",
   "cookies_after_login": [
     {
-      "name": "sb-supabase-auth-token",
+      "name": "sb-vbddpwxbijwuarmrexme-auth-token",
       "domain": "localhost",
       "path": "/",
       "httpOnly": false,
       "sameSite": "Lax",
-      "valueLen": 2395,
+      "valueLen": 2639,
       "valuePrefix": "base64-eyJhY2Nlc3NfdG9rZ"
     }
   ],
   "b4_cookieCountAfterLogin": 1,
   "b4_hasSsrCookieShape": true,
   "b4_hasLegacyCookieShape": false,
-  "b4_adminFetchStatus": 200,
   "b4_adminFinalUrl": "http://localhost:3000/",
   "b4_afterReloadUrl": "http://localhost:3000/",
   "b5_tab2BeforeLogoutUrl": "http://localhost:3000/",
   "cookies_before_logout": [
     {
-      "name": "sb-supabase-auth-token",
+      "name": "sb-vbddpwxbijwuarmrexme-auth-token",
       "domain": "localhost",
       "path": "/",
       "httpOnly": false,
       "sameSite": "Lax",
-      "valueLen": 2397,
+      "valueLen": 2639,
       "valuePrefix": "base64-eyJhY2Nlc3NfdG9rZ"
     }
   ],

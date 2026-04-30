@@ -27,7 +27,7 @@ export default async function QuizPage({ params }: { params: Promise<{ id: strin
         </div>
         <Link href={`/topic/${id}`} className="text-sm text-emerald-400 hover:underline">Review Topic</Link>
       </div>
-      <QuizComponent quizId={quiz.id} questions={quiz.questions || []} />
+      <QuizComponent quizId={quiz.id} topicId={id} questions={quiz.questions || []} />
     </div>
   );
 }

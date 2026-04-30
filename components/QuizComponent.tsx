@@ -4,43 +4,73 @@ import { useState } from 'react';
 import { createWeakArea, createQuizAttempt } from '@/lib/supabase';
 import { createClient } from '@/lib/supabase-browser';
 
-export function QuizComponent({ quizId, questions }: { quizId: string; questions: any[] }) {
+export function QuizComponent({ quizId, topicId, questions }: { quizId: string; topicId: string; questions: any[] }) {
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [submitted, setSubmitted] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
   const [score, setScore] = useState(0);
 
   const toggle = (qId: string, choice: string) => {
-    if (submitted) return;
+    if (submitted || isSubmitting) return;
     setAnswers(prev => ({ ...prev, [qId]: choice }));
   };
 
   const handleSubmit = async () => {
+    if (submitted || isSubmitting) return;
+    setIsSubmitting(true);
+    setSubmitError(null);
+
     let correct = 0;
     questions.forEach((q: any) => {
       if (answers[q.id] === q.correct_option) correct++;
     });
-    setScore(correct);
-    setSubmitted(true);
 
-    const userId = (await createClient().auth.getUser()).data.user?.id;
-    if (userId) {
-      await createQuizAttempt(userId, quizId, answers, { silly: 0, concept: 0, time: 0 });
-      fetch('/api/coins/award', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ amount: correct * 5, reason: 'quiz_correct', idempotency_key: `quiz-${quizId}-${userId}` }),
-      }).catch(() => {});
-      for (const q of questions) {
-        if (answers[q.id] !== q.correct_option) {
-          await createWeakArea(userId, quizId.split('-')[0] || 'topic-001', 'concept', 3);
-        }
+    try {
+      const userId = (await createClient().auth.getUser()).data.user?.id;
+      if (!userId) {
+        setSubmitError('You must be signed in to submit. Please log in and try again.');
+        setIsSubmitting(false);
+        return;
       }
+
+      // Create attempt FIRST so coin award can be keyed to the attempt id (prevents double-award).
+      const attemptId = await createQuizAttempt(userId, quizId, answers, { silly: 0, concept: 0, time: 0 });
+
+      // Idempotency key per CLAUDE.md guidance: attempt-id-scoped so a refresh during submit
+      // can't double-award. Falls back to (quiz, user) if attempt insert silently failed.
+      const idempotencyKey = attemptId
+        ? `quiz_attempt_${attemptId}_completion`
+        : `quiz_${quizId}_${userId}_completion`;
+
+      if (correct > 0) {
+        await fetch('/api/coins/award', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ amount: correct * 5, reason: 'quiz_correct', idempotency_key: idempotencyKey }),
+        }).catch(() => {});
+      }
+
+      // Batch weak-area writes (was a serial N+1 loop). Use the actual topicId from the route,
+      // not quizId.split('-')[0] which produced garbage UUID fragments.
+      const wrong = questions.filter((q: any) => answers[q.id] !== q.correct_option);
+      if (wrong.length > 0) {
+        await Promise.all(wrong.map(() => createWeakArea(userId, topicId, 'concept', 3)));
+      }
+
       // F1.5: Auto-trigger rank prediction on significant activity
       fetch('/api/rank/predict', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ user_id: userId }),
       }).catch(() => {});
+
+      setScore(correct);
+      setSubmitted(true);
+    } catch (err: any) {
+      setSubmitError(err?.message || 'Submission failed. Please check your connection and try again.');
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -71,7 +101,7 @@ export function QuizComponent({ quizId, questions }: { quizId: string; questions
                       ? 'border-emerald-500 bg-emerald-500/20'
                       : 'border-slate-700 bg-slate-800 hover:bg-slate-700'
                   }`}
-                  disabled={submitted}
+                  disabled={submitted || isSubmitting}
                 >
                   {opt}
                 </button>
@@ -81,8 +111,20 @@ export function QuizComponent({ quizId, questions }: { quizId: string; questions
         </div>
       ))}
 
+      {submitError && (
+        <div className="bg-red-500/10 border border-red-500/30 rounded-xl p-4 text-sm text-red-300">
+          {submitError}
+        </div>
+      )}
+
       {!submitted ? (
-        <button onClick={handleSubmit} className="w-full py-3 bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-bold rounded-xl transition">Submit Quiz</button>
+        <button
+          onClick={handleSubmit}
+          disabled={isSubmitting}
+          className="w-full py-3 bg-emerald-500 hover:bg-emerald-600 disabled:bg-slate-700 disabled:cursor-not-allowed text-slate-950 font-bold rounded-xl transition"
+        >
+          {isSubmitting ? 'Submitting…' : 'Submit Quiz'}
+        </button>
       ) : (
         <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-xl p-6 text-center">
           <p className="text-2xl font-bold text-emerald-400">{score} / {questions.length}</p>

@@ -25,7 +25,7 @@
     "@types/three": "^0.184.0",
     "autoprefixer": "10.4.0",
     "framer-motion": "11.0.0",
-    "next": "15.0.0",
+    "next": "^15.1.12",
     "openai": "4.57.0",
     "postcss": "8.4.0",
     "razorpay": "^2.9.6",
@@ -47,7 +47,7 @@
     "@types/react-dom": "^18.3.0",
     "@vitejs/plugin-react": "^6.0.1",
     "eslint": "8.57.0",
-    "eslint-config-next": "15.0.0",
+    "eslint-config-next": "^15.1.12",
     "jsdom": "^29.0.2",
     "vitest": "^4.1.5"
   }

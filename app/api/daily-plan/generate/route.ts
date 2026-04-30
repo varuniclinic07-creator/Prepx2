@@ -10,7 +10,14 @@ export async function POST() {
 
     const tasks = await generateDailyPlan(user.id);
     const today = new Date().toISOString().split('T')[0];
-    const { data, error } = await supabase.from('daily_plans').upsert({ user_id: user.id, plan_date: today, tasks, status: 'pending' }).select().single();
+    const { data, error } = await supabase
+      .from('daily_plans')
+      .upsert(
+        { user_id: user.id, plan_date: today, tasks, status: 'pending' },
+        { onConflict: 'user_id,plan_date' }
+      )
+      .select()
+      .single();
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
     return NextResponse.json({ plan: data, tasks });
   } catch (err: any) {
