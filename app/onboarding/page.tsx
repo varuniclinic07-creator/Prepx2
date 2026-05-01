@@ -3,6 +3,10 @@ import { useState, useEffect } from 'react';
 import { createClient } from '@/lib/supabase-browser';
 import { createSession } from '@/lib/agents/hermes';
 import { useRouter } from 'next/navigation';
+import { Button } from '@/components/ui/Button';
+import { Card } from '@/components/ui/Card';
+import { GlassCard } from '@/components/ui/GlassCard';
+import { Pill } from '@/components/ui/Pill';
 
 const DIAGNOSTIC_QUESTIONS = [
   { id: 'd1', question: 'Which constitutional article abolished Untouchability?', options: ['Article 14', 'Article 17', 'Article 21', 'Article 32'], correct_option: 'Article 17' },
@@ -86,91 +90,94 @@ export default function OnboardingPage() {
   };
 
   return (
-    <div className="max-w-2xl mx-auto px-4 space-y-8">
+    <div className="relative mx-auto max-w-2xl space-y-8 px-4 py-10">
+      <div className="pointer-events-none absolute inset-0 -z-10">
+        <div className="absolute left-[10%] top-[5%] h-[35vh] w-[35vh] rounded-full bg-[var(--color-primary-700)]/20 blur-[120px]" />
+        <div className="absolute right-[10%] bottom-[5%] h-[35vh] w-[35vh] rounded-full bg-[var(--color-secondary-600)]/15 blur-[120px]" />
+      </div>
+
       {!started ? (
-        <div className="text-center space-y-6 py-12">
-          <h1 className="text-3xl font-bold text-slate-100">Welcome, Aspirant</h1>
-          <p className="text-slate-400">Study in English or Hindi?</p>
+        <GlassCard glow="primary" padding="lg" className="space-y-6 text-center">
+          <h1 className="font-display text-3xl font-bold tracking-tight text-white">Welcome, Aspirant</h1>
+          <p className="text-white/60">Study in English or Hindi?</p>
           <div className="flex justify-center gap-3">
-            <button
-              onClick={() => handleStart('en')}
-              className="px-6 py-3 bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-bold rounded-xl transition"
-            >
-              English
-            </button>
-            <button
-              onClick={() => handleStart('hi')}
-              className="px-6 py-3 bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-100 font-bold rounded-xl transition"
-            >
-              हिंदी
-            </button>
+            <Button onClick={() => handleStart('en')} variant="primary" size="md">English</Button>
+            <Button onClick={() => handleStart('hi')} variant="ghost" size="md">हिंदी</Button>
           </div>
-        </div>
+        </GlassCard>
       ) : (
         <>
-          <div className="text-center space-y-2">
-            <h1 className="text-3xl font-bold text-slate-100">Diagnostic Quiz</h1>
-            <p className="text-slate-400">5 quick questions to calibrate your starting point</p>
+          <div className="space-y-2 text-center">
+            <h1 className="font-display text-3xl font-bold tracking-tight text-white">Diagnostic Quiz</h1>
+            <p className="text-white/60">5 quick questions to calibrate your starting point</p>
           </div>
 
           {DIAGNOSTIC_QUESTIONS.map((q, idx) => (
-            <div key={q.id} className="bg-slate-900 border border-slate-800 rounded-xl p-5">
+            <Card key={q.id} padding="md">
               <div className="flex items-start gap-3">
-                <span className="bg-emerald-500/20 text-emerald-400 text-xs font-bold px-2 py-1 rounded">{idx + 1}</span>
-                <p className="text-slate-200 font-medium">{q.question}</p>
+                <Pill tone="primary">{String(idx + 1)}</Pill>
+                <p className="font-medium text-white/90">{q.question}</p>
               </div>
-              <div className="mt-3 space-y-2">
+              <div className="mt-4 space-y-2">
                 {q.options.map(opt => {
                   const selected = answers[q.id] === opt;
                   const isCorrect = opt === q.correct_option;
+                  const stateClass = submitted
+                    ? isCorrect
+                      ? 'border-[var(--color-success-500)]/50 bg-[var(--color-success-500)]/10 text-white'
+                      : selected
+                        ? 'border-[var(--color-error-500)]/50 bg-[var(--color-error-500)]/10 text-white'
+                        : 'border-white/5 bg-white/[0.02] text-white/55'
+                    : selected
+                      ? 'border-[var(--color-primary-400)]/60 bg-[var(--color-primary-500)]/15 text-white'
+                      : 'border-white/10 bg-white/[0.02] text-white/75 hover:border-white/20 hover:bg-white/5';
                   return (
                     <button
                       key={opt}
                       onClick={() => toggle(q.id, opt)}
                       disabled={submitted}
-                      className={`w-full text-left text-sm px-4 py-2 rounded-lg border transition ${
-                        submitted
-                          ? isCorrect ? 'border-emerald-500 bg-emerald-500/10' : selected ? 'border-red-500 bg-red-500/10' : 'border-slate-700 bg-slate-800'
-                          : selected ? 'border-emerald-500 bg-emerald-500/20' : 'border-slate-700 bg-slate-800 hover:bg-slate-700'
-                      }`}
+                      className={`w-full rounded-xl border px-4 py-2.5 text-left text-sm transition-colors ${stateClass}`}
                     >
                       {opt}
                     </button>
                   );
                 })}
               </div>
-            </div>
+            </Card>
           ))}
 
           {!submitted ? (
-            <button
+            <Button
               onClick={handleSubmit}
               disabled={Object.keys(answers).length < 5}
-              className="w-full py-3 bg-emerald-500 hover:bg-emerald-600 disabled:opacity-40 text-slate-950 font-bold rounded-xl transition"
+              variant="primary"
+              size="lg"
+              block
             >
               Submit Diagnostic
-            </button>
+            </Button>
           ) : (
-            <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-xl p-8 text-center space-y-4">
-              <p className="text-3xl font-bold text-emerald-400">{score} / 5</p>
-              <p className="text-slate-300">
+            <GlassCard glow="primary" padding="lg" className="space-y-4 text-center">
+              <p className="font-display text-4xl font-bold text-[var(--color-primary-300)]">{score} / 5</p>
+              <p className="text-white/75">
                 {score >= 4 ? 'Strong foundation! We will focus on advanced concepts.' :
                  score >= 2 ? 'Good start. We will reinforce fundamentals + weak areas.' :
                  'Building from the ground up. We have got you covered.'}
               </p>
               {saveError && (
-                <div role="alert" className="bg-red-500/10 border border-red-500/30 rounded-lg p-3 text-sm text-red-300">
+                <div role="alert" className="rounded-xl border border-[var(--color-error-500)]/30 bg-[var(--color-error-500)]/10 p-3 text-sm text-[var(--color-error-500)]">
                   {saveError}
                 </div>
               )}
-              <button
-                onClick={() => router.push('/')}
+              <Button
+                onClick={() => router.push('/dashboard')}
                 disabled={saving || !!saveError}
-                className="px-6 py-2 bg-emerald-500 hover:bg-emerald-600 disabled:bg-slate-700 disabled:cursor-not-allowed text-slate-950 font-bold rounded-xl transition"
+                variant="primary"
+                size="md"
               >
-                {saving ? 'Saving...' : saveError ? 'Save failed' : 'Go to Dashboard'}
-              </button>
-            </div>
+                {saving ? 'Saving…' : saveError ? 'Save failed' : 'Go to Dashboard'}
+              </Button>
+            </GlassCard>
           )}
         </>
       )}

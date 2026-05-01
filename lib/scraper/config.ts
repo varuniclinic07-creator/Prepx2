@@ -163,3 +163,42 @@ export const SOURCE_REGISTRY: SourceConfig[] = [
 export const SCRAPE_OUTPUT_DIR = '/a0/tmp/prepx_downloads';
 export const MAX_PAGES_PER_SOURCE = 5;
 export const MAX_PDF_PAGES_EXTRACT = 15;
+
+// ── B2-4: per-source token bucket (requests/min) and per-fetch timeout ──
+// PIB tolerates more, smaller blogs less. Defaults to 10/min if not listed.
+export const RATE_LIMITS: Record<string, number> & { default: number } = {
+  default: 10,
+  pib: 30,
+  insights: 10,
+  iasbaba: 10,
+  'visionias-current-affairs': 10,
+  'visionias-mains-corner': 10,
+  'visionias-monthly-magazine': 10,
+  'visionias-quick-revision': 10,
+  'visionias-vam': 10,
+  'visionias-vam1': 10,
+  'drishti-prelims': 10,
+  'drishti-mains': 10,
+  'drishti-arc': 10,
+  'iasscore-ca': 10,
+  'iasscore-mains': 10,
+  'nextias-yojana': 10,
+  'nextias-kurukshetra': 10,
+  shankariasparliament: 10,
+  gsscore: 10,
+};
+export const FETCH_TIMEOUT_MS = 15_000;
+
+// The 9 spec-named "primary" sources for the daily Hermes sweep.
+// Other sources in SOURCE_REGISTRY are auxiliary and only run on manual triggers.
+export const PRIMARY_SOURCE_IDS: string[] = [
+  'pib',
+  'nextias-yojana',
+  'nextias-kurukshetra',
+  'visionias-current-affairs',
+  'insights',
+  'iasbaba',
+  'drishti-prelims',
+  'iasscore-ca',
+  'drishti-arc', // 2nd ARC reports
+];

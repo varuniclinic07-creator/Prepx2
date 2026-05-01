@@ -74,6 +74,17 @@ COPY --from=builder /app/.next/static ./.next/static
 COPY --from=builder /app/supabase ./supabase
 COPY --from=builder /app/scripts ./scripts
 
+# Worker source + raw lib for the Hermes BullMQ worker process (B2-2).
+# The worker shares this image with Next.js — docker-compose runs them as
+# two services with different `command:` overrides. The worker entry sets
+# NODE_PATH=/app/worker_node_modules so it picks up bullmq/ioredis/tsx etc.
+COPY --from=builder /app/workers ./workers
+COPY --from=builder /app/lib ./lib
+COPY --from=builder /app/types ./types
+COPY --from=builder /app/tsconfig.json ./tsconfig.json
+COPY --from=builder /app/package.json ./package.json
+COPY --from=deps    /app/node_modules ./worker_node_modules
+
 # Drop to non-root user for security
 RUN addgroup --system --gid 1001 nodejs && \
     adduser --system --uid 1001 nextjs && \

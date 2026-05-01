@@ -20,6 +20,8 @@ services:
       - "3000:3000"
     env_file:
       - .env.local
+    environment:
+      REDIS_URL: redis://redis:6379
     depends_on:
       - postgres
       - redis
@@ -30,6 +32,26 @@ services:
       timeout: 10s
       retries: 3
       start_period: 10s
+
+  # -------------------------------------------------------------------------
+  # Hermes 24/7 Worker (BullMQ — same image as the Next.js app, B2-2)
+  # -------------------------------------------------------------------------
+  hermes-worker:
+    container_name: prepx-hermes-worker
+    build:
+      context: .
+      dockerfile: Dockerfile
+    env_file:
+      - .env.local
+    environment:
+      NODE_ENV: production
+      NODE_PATH: /app/worker_node_modules
+      REDIS_URL: redis://redis:6379
+    command: ["node", "worker_node_modules/.bin/tsx", "scripts/start-hermes-worker.ts"]
+    depends_on:
+      - postgres
+      - redis
+    restart: unless-stopped
 
   # -------------------------------------------------------------------------
   # PostgreSQL (Supabase replacement for local dev)

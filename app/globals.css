@@ -1,13 +1,227 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import 'tailwindcss';
+@plugin 'tailwindcss-animate';
 
+/* ─── PrepX Design System (Tailwind v4 @theme) ─────────────────────────────
+ * Tokens lifted from .a0proj/_bmad-output/planning-artifacts/ux-design-system.md
+ * Saffron #FF9933 reserved for India/UPSC identity moments (CTAs, badges,
+ * splash flourishes); blue-purple-cyan is the base surface palette.
+ * ────────────────────────────────────────────────────────────────────────── */
+
+@theme {
+  /* Fonts (CSS variables wired in app/layout.tsx via next/font) */
+  --font-sans: var(--font-jakarta), 'Plus Jakarta Sans', ui-sans-serif, system-ui, sans-serif;
+  --font-devanagari: var(--font-noto-devanagari), 'Noto Sans Devanagari', 'Noto Sans', sans-serif;
+  --font-display: var(--font-playfair), 'Playfair Display', ui-serif, Georgia, serif;
+  --font-mono: ui-monospace, 'JetBrains Mono', 'Fira Code', monospace;
+
+  /* Primary spectrum (planning-artifacts) */
+  --color-primary-50: #eef4ff;
+  --color-primary-100: #d9e4ff;
+  --color-primary-200: #b6cdff;
+  --color-primary-300: #84a9ff;
+  --color-primary-400: #5280ff;
+  --color-primary-500: #2b59f0;
+  --color-primary-600: #1e40af;
+  --color-primary-700: #1e3a8a;
+  --color-primary-800: #172554;
+  --color-primary-900: #0f172a;
+
+  /* Secondary (purple — AI / intelligence) */
+  --color-secondary-300: #c4b5fd;
+  --color-secondary-400: #a78bfa;
+  --color-secondary-500: #8b5cf6;
+  --color-secondary-600: #6d28d9;
+  --color-secondary-700: #5b21b6;
+
+  /* Accent — cyan + saffron (India identity) */
+  --color-accent-cyan-400: #22d3ee;
+  --color-accent-cyan-500: #06b6d4;
+  --color-accent-cyan-600: #0891b2;
+  --color-accent-saffron: #ff9933;
+  --color-accent-saffron-deep: #e07a1f;
+  --color-accent-india-green: #138808;
+  --color-accent-magenta-500: #ec4899;
+
+  /* Surfaces (dark theme baseline) */
+  --color-surface-0: #0f172a;
+  --color-surface-50: #131c31;
+  --color-surface-100: #1e293b;
+  --color-surface-200: #334155;
+  --color-surface-300: #475569;
+  --color-surface-400: #94a3b8;
+  --color-surface-500: #cbd5e1;
+  --color-surface-600: #e2e8f0;
+
+  /* Semantic */
+  --color-success-500: #10b981;
+  --color-warning-500: #f59e0b;
+  --color-error-500: #ef4444;
+  --color-info-500: #3b82f6;
+
+  /* Glass tokens */
+  --color-glass-bg: rgba(255, 255, 255, 0.05);
+  --color-glass-border: rgba(255, 255, 255, 0.10);
+
+  /* Radius */
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+  --radius-2xl: 20px;
+
+  /* Shadows + glow */
+  --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.05);
+  --shadow-sm: 0 2px 4px rgba(0, 0, 0, 0.06), 0 1px 2px rgba(0, 0, 0, 0.04);
+  --shadow-md: 0 8px 16px rgba(0, 0, 0, 0.08), 0 2px 4px rgba(0, 0, 0, 0.04);
+  --shadow-lg: 0 16px 32px rgba(0, 0, 0, 0.12), 0 4px 8px rgba(0, 0, 0, 0.06);
+  --shadow-glow-primary-sm: 0 0 12px rgba(43, 89, 240, 0.25);
+  --shadow-glow-primary-md: 0 0 24px rgba(43, 89, 240, 0.35);
+  --shadow-glow-primary-lg: 0 0 48px rgba(43, 89, 240, 0.45);
+  --shadow-glow-secondary-md: 0 0 24px rgba(139, 92, 246, 0.35);
+  --shadow-glow-cyan-md: 0 0 20px rgba(34, 211, 238, 0.35);
+  --shadow-glow-saffron-sm: 0 0 12px rgba(255, 153, 51, 0.30);
+  --shadow-glow-saffron-md: 0 0 28px rgba(255, 153, 51, 0.45);
+  --shadow-glow-saffron-lg: 0 0 56px rgba(255, 153, 51, 0.55);
+
+  /* Blur */
+  --blur-sm: 4px;
+  --blur-md: 12px;
+  --blur-lg: 20px;
+  --blur-xl: 32px;
+  --blur-max: 64px;
+
+  /* Easing — used in inline transitions throughout */
+  --ease-default: cubic-bezier(0.4, 0, 0.2, 1);
+  --ease-out: cubic-bezier(0, 0, 0.2, 1);
+  --ease-in: cubic-bezier(0.4, 0, 1, 1);
+  --ease-spring: cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  --ease-smooth: cubic-bezier(0.45, 0.05, 0.55, 0.95);
+  --ease-cinematic: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* ─── Base ─────────────────────────────────────────────────────────────── */
 :root {
-  --background: oklch(0.12 0.04 260);
-  --foreground: oklch(0.95 0.01 260);
+  color-scheme: dark;
+}
+
+html {
+  background-color: var(--color-surface-0);
+  color: var(--color-surface-500);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
 }
 
 body {
-  background-color: var(--background);
-  color: var(--foreground);
+  background-color: var(--color-surface-0);
+  color: var(--color-surface-500);
+  min-height: 100svh;
+}
+
+/* Devanagari rule from ux-design-system.md — line-height +0.1em */
+:lang(hi) {
+  font-family: var(--font-devanagari);
+  line-height: 1.7;
+}
+
+:lang(hi) h1,
+:lang(hi) h2,
+:lang(hi) h3,
+:lang(hi) h4 {
+  line-height: 1.4;
+}
+
+::selection {
+  background-color: rgba(43, 89, 240, 0.35);
+  color: white;
+}
+
+/* ─── Glass utilities ───────────────────────────────────────────────────── */
+@utility glass {
+  background-color: var(--color-glass-bg);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  border: 1px solid var(--color-glass-border);
+  box-shadow: var(--shadow-md), inset 0 1px 0 rgba(255, 255, 255, 0.06);
+}
+
+@utility glass-strong {
+  background-color: rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(28px) saturate(180%);
+  -webkit-backdrop-filter: blur(28px) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  box-shadow: var(--shadow-lg), inset 0 1px 0 rgba(255, 255, 255, 0.10);
+}
+
+@utility glass-accent {
+  border: 1px solid transparent;
+  background:
+    linear-gradient(var(--color-surface-100), var(--color-surface-100)) padding-box,
+    linear-gradient(135deg, #3b82f6, #8b5cf6, #06b6d4) border-box;
+  box-shadow: var(--shadow-md);
+}
+
+/* ─── Glow utilities ────────────────────────────────────────────────────── */
+@utility glow-primary {
+  box-shadow: var(--shadow-glow-primary-md);
+}
+
+@utility glow-primary-lg {
+  box-shadow: var(--shadow-glow-primary-lg);
+}
+
+@utility glow-secondary {
+  box-shadow: var(--shadow-glow-secondary-md);
+}
+
+@utility glow-cyan {
+  box-shadow: var(--shadow-glow-cyan-md);
+}
+
+@utility glow-saffron {
+  box-shadow: var(--shadow-glow-saffron-md);
+}
+
+@utility glow-saffron-lg {
+  box-shadow: var(--shadow-glow-saffron-lg);
+}
+
+/* ─── Gradient text helpers ────────────────────────────────────────────── */
+@utility text-gradient-nebula {
+  background: linear-gradient(135deg, #3b82f6, #8b5cf6, #06b6d4);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+@utility text-gradient-saffron {
+  background: linear-gradient(135deg, #ff9933, #ffd700, #ff9933);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+/* ─── Reduced motion guard ─────────────────────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* ─── Tenant primary fallback ──────────────────────────────────────────── */
+:root {
+  --tenant-primary: var(--color-primary-500);
+}
+
+/* Recharts dark tooltip override */
+.recharts-tooltip-wrapper .recharts-default-tooltip {
+  background-color: rgba(15, 23, 42, 0.92) !important;
+  border: 1px solid rgba(255, 255, 255, 0.10) !important;
+  border-radius: 12px !important;
+  backdrop-filter: blur(12px);
 }

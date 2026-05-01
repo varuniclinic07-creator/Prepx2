@@ -4,9 +4,95 @@
 
 ---
 
+## 🟥 Resume protocol (read FIRST on any new session)
+
+If you are a fresh Claude session opening this repo, do these in order BEFORE any code edits:
+
+1. **Load standing rules** from `C:\Users\DR-VARUNI\.claude\projects\C--Users-DR-VARUNI-Desktop-New-folder-PrepX\memory\`:
+   - `feedback_user_mega_directive.md` — the non-negotiable rules (no scaffolding, batch-of-4, Hermes agent team, Google UI bar, 3D/video mandates, outstanding-or-don't-ship)
+   - `feedback_batch_strategy.md` — exact agent-dispatch sequence per batch
+   - `reference_planning_artifacts.md` — where the PRD/architecture/UX/epics live
+2. **Read the demand**: `app concepts.md` at repo root — authoritative spec.
+3. **Read the UI bar**: `C:/Users/DR-VARUNI/Desktop/New folder (2)/ui by google/` — Google AI Studio reference (Next 15 + React 19 + motion 12 + tailwind 4.1 + recharts).
+4. **Read the audit**: `.a0proj/_bmad-output/audit/spec-vs-reality-2026-05-01.md` — 122-item gap table; 50% NOT-STARTED, 23% STUB.
+5. **Re-read this CHECKPOINT.md** for the active slice.
+6. Resume the next pending action under "Active slice" — do NOT start a new patch unless the user explicitly says so.
+
+The user has stated: instructions must NEVER be ignored, even if the session is interrupted/lost. This protocol is how that promise survives.
+
+---
+
+## Standing process: Batch-of-4 implement-then-E2E
+
+User's directive (2026-05-01): work through PrepX features in **batches of 4**. Every batch follows this exact sequence:
+
+1. **Multi-agent recon (parallel)** — Explore agents map each feature's UI, API, DB, RLS, dependencies. Identify partial vs complete.
+2. **Multi-agent implement gaps (parallel)** — split work across specialist agents that run concurrently:
+   - **devops agent** — env, Coolify, Docker, healthcheck
+   - **backend agent** — API routes, business logic
+   - **supabase agent** — migrations, RLS, triggers
+   - **frontend UI/UX agent** — pages, components, client logic, a11y
+3. **End-to-end flow test (cloud Supabase, not local mock)** — Playwright spec walks the full user journey (login → action → relogin) and verifies DB persistence; never swallow RLS errors.
+4. **Commit** — one bundled commit per batch, only after E2E green.
+
+**Done batches:**
+- Batch 1: Sprint 1 (auth, quiz, daily-plan, dashboard) — commit `575d90c` + onboarding RLS fix `1aa5953`
+- 2026-05-01: PIVOT — patch-fix mode replaced with spec-driven epic implementation. See `.a0proj/_bmad-output/audit/spec-vs-reality-2026-05-01.md`. User confirmed scope = full 34 Watch-Mode features.
+
+**Audit headline:** 122 items, 50% NOT-STARTED, 23% STUB, 21% PARTIAL, only 5% MVP-READY. Recommended 6-sprint roadmap (12 weeks) with Sprint 1 = Core Video Infrastructure.
+
+When user says "next 4 features" or "proceed further," follow this sequence without re-asking for permission.
+
+---
+
 ## Active slice
 
-**auth-foundation-production-verification** (BMAD 6-step plan)
+**Batch 2 — Spec-driven Sprint 1 of audit roadmap (parallel 4-agent dispatch, 2026-05-01)**
+
+User reinforced mega-directive (see `feedback_user_mega_directive.md`): every `app concepts.md` demand is non-negotiable, end-to-end working, no stubs, "outstanding" UPSC prep that makes other platforms obsolete. UI must match Google AI Studio bar. Hermes 24/7 + 3D + video lectures + Real Interview Panel + visualization videos for any topic (BC/AD/BCE, dinosaurs, big bang, cosmos) all mandatory.
+
+User directive: parallel batches of 4 features = audit → code → test → validate → end-to-end verify. Run all 4 features concurrently (background agents in worktrees), then merge + E2E + commit. Background-deferred: Batch 1 prod-deploy (NEXT_PUBLIC_BASE_URL on Coolify, Google OAuth) — user said skip prod-deploy detour, start video infra now.
+
+### Recon completed 2026-05-01 (3 parallel Explore agents)
+- **Video pipeline recon** — Epic 6 ~5-30% per sub-epic. ComfyUI client + workflow template DB row exist; no GPU server connected; no Remotion/Manim deps; no Celery/BullMQ; signed URLs/storage = 0%. 15+ downstream features blocked.
+- **UI quality recon** — current UI: framer-motion v11 (legacy), Tailwind 3.4, no splash/hero/glass/glow, no recharts, system fonts only. Google ref: motion 12 + Tailwind 4.1 + Plus Jakarta + Playfair + lucide-react + recharts 3.8. Brand spec (planning-artifacts/ux-design-system.md) uses blue-purple-cyan + saffron accents + bilingual EN/HI + mobile-first 360px. All 3 (Google bar, brand spec, current code) reconciled = Option B medium overhaul (1-2 wk).
+- **Hermes recon** — `lib/agents/hermes.ts` is state-machine only; `spawnAgent()` is a STUB that inserts into `agent_tasks` but no worker consumes. `lib/scraper/` has 16 hardcoded UPSC sources but only triggered by manual HTTP POST. No BullMQ/Redis/cron. Recommended Node-side BullMQ + ioredis (reuses TS stack, same Coolify infra).
+
+### Batch 2 features (parallel agent dispatch)
+
+| # | Feature | Owner agent | Migration alloc | Branch |
+|---|---|---|---|---|
+| B2-1 | UI Foundation Shell (motion v12 upgrade, splash, hero, dashboard, glassmorphism, lucide-react, Plus Jakarta + Devanagari fonts) | UI/UX agent | none | feat/batch2-ui-foundation |
+| B2-2 | Hermes 24/7 Worker Infrastructure (BullMQ + ioredis, worker process, Docker service, job lifecycle, dispatch loop, observability) | backend + supabase + devops | 048, 049 | feat/batch2-hermes-worker |
+| B2-3 | Video Pipeline Foundation (30-45min script writer, video_scripts/video_lectures tables, ComfyUI orchestration job, Supabase Storage bucket, signed URL refresh, nightly cron 1-6 AM) | backend + supabase | 050, 051 | feat/batch2-video-pipeline |
+| B2-4 | Research Crawler Live (wire `lib/scraper/pipeline.ts` to BullMQ daily 9am job, dedup, store to `topics` + new `crawl_history`, Hermes dispatches research-jobs, source rate-limits) | backend + supabase | 052 | feat/batch2-research-crawler |
+
+Each agent runs in its own worktree (isolation: worktree). Migrations allocated to prevent collisions. After all 4 land:
+1. Merge worktrees back (manual review of each diff)
+2. Run cloud-Supabase Playwright E2E (full happy path per feature)
+3. Single bundled commit
+4. Update CHECKPOINT.md → Batch 3
+
+### Batch 2 — sequential merge (worktrees scrapped 2026-05-02 per user direction)
+
+User chose sequential-on-main over parallel worktrees after 3 of 4 agents stalled mid-flight. Order: Hermes (dependency root) → Video → Research → UI (visible jump last so it's done in context of the new infra).
+
+| # | Status | Notes |
+|---|---|---|
+| B2-2 Hermes | **landed on main 2026-05-02** | Migrations 048+049 applied to cloud Supabase. lib/queue/{redis,queues,types}.ts + workers/hermes-worker.ts + scripts/start-hermes-worker.ts + lib/supabase-admin.ts copied. lib/agents/hermes.ts split into client-safe state machine + server-only lib/agents/hermes-dispatch.ts (BullMQ pulls Node net/fs → can't be in client bundle). Admin UI at /admin/hermes (page.tsx) + /api/admin/hermes/{status,retry,sweep}. Dockerfile copies workers/lib for shared image; docker-compose.yml has hermes-worker service. **Verified:** `npm run build` green; `node scripts/verification/hermes-rpc-smoke.mjs` 8/8 PASS (claim flips status, writes processing log; complete writes terminal log; requeue retries then promotes to dead_letter). |
+| B2-3 Video | **landed on main 2026-05-02** | Migrations 050+051 applied to cloud (video_scripts, video_lectures, video_notes, video_qa, video_render_jobs, system_alerts, notifications + 'videos' storage bucket). lib/agents/script-writer.ts (145 wpm, F-K 9-11, NCERT/Laxmikanth/PIB citations) + lib/video/storage.ts (uploadRenderedVideo, mintSignedUrl 24h TTL, getOrRefreshLectureUrl auto-refresh) + lib/video/processors.ts (script/content/render — render drives ComfyUI 30-min deadline, on failure writes system_alerts + lectures.status='failed', no faking success). API: app/api/admin/video/scripts (POST queues script-jobs, PATCH approve→queues render / reject→failed). Admin UI: app/admin/video/{page.tsx,ApproveButton.tsx} client PATCH. Public viewer: app/lectures/[id]/{page.tsx,LecturePlayer.tsx} with chapter seek + timestamped notes + AI Q&A grounded in script_text. APIs: /api/lectures/[id]/{notes,qa} self-only via RLS. **Verified:** `npm run build` green (route /lectures/[id] 2.01 kB compiled); `node scripts/verification/video-pipeline-smoke.mjs` 9/9 PASS (script draft→approve, render-job queue, lecture rendering→failed→system_alerts→published+signed_url cycle, cleanup). Still TODO: actual ComfyUI workflow JSON for 30-45min 3D-animated lecture render; Manim integration for visualizations. |
+| B2-4 Research | **landed on main 2026-05-02** | Migration 052 applied to cloud (research_articles, research_topic_links, research_priority_signals, match_topics_for_article RPC, full RLS). Salvage: lib/scraper/{config,engine,pipeline,dedup}.ts (engine adds per-source token bucket + circuit breaker; pipeline adds 3-stage scrapeSourceOnce/enrichArticle/linkArticleToTopics; config adds RATE_LIMITS + PRIMARY_SOURCE_IDS). lib/scraper/processor.ts wires real research-jobs processor (scrape→enrich→link inline, cascades content-jobs for newly-linked topics, capped 20). lib/agents/research-priority-signals.ts persists nightly top-200 topic priority scores. workers/hermes-worker.ts: replaced makeDeferredProcessor('B2-4') with processResearchJob. Admin UI: app/admin/research/{page.tsx,RunSourceButton.tsx} (status tally + per-source last-crawl table + recent-articles list). API routes: /api/admin/research/run-source POST queues crawl; /api/admin/research/articles/[id]/{link,reject} POST for manual triage; /api/research/feed GET returns articles linked to today's plan topics (falls back to global feed). admin/layout.tsx adds Research + Video nav links. **Verified:** `npm run build` green (route /admin/research compiled, /api/research/feed compiled); `node scripts/verification/research-corpus-smoke.mjs` 9/9 PASS (raw insert, UNIQUE 23505 guard, raw→enriched→linked transition, link unique guard, match_topics RPC, priority_signals insert). Daily 09:00 IST sweep already wired in workers/hermes-worker.ts via runHermesResearchSweep. Still TODO: Crawl4AI infrastructure connection (scrapeSource currently uses direct fetch fallback); embeddings need a working 9router endpoint to actually populate vectors. |
+| B2-1 UI | **landed on main 2026-05-02 (uncommitted)** | UI deps installed (motion 12, lucide, recharts, tailwind 4, sonner, cva, clsx, tailwind-merge). Components present: components/{SplashScreen,PageTransition,MotionPresets,AppShell}.tsx + components/ui/{Button,Card,GlassCard,IconButton,LangToggle,Pill}.tsx + components/landing/{Hero,FeaturePillars,BottomCTA,LandingFooter,LandingExperience}.tsx + components/dashboard/{DashboardGreeting,HermesFeed,RecentAttempts,WeakAreaRadar}.tsx + components/nav/{MarketingNav,NotificationBell,Topbar}.tsx. EN/HI dicts in lib/dictionaries/dict.{en,hi}.json + lib/i18n.ts + lib/i18n-client.tsx. lib/cn.ts (clsx + tailwind-merge). lib/auth.ts (getUser helper). app/{layout,page,login,onboarding}.tsx + app/globals.css + app/dashboard/ all rewritten to use new shell. **Verified:** `npm run build` green — all routes including /lectures/[id], /admin/research, /admin/video, /admin/hermes built without errors; warnings only for legacy quiz/battle/spatial pages. Honest gaps: not visually compared cell-by-cell to Google AI Studio reference yet; SplashScreen + 3D topic visualizations (BC/AD/BCE eras, dinosaurs, big bang) not yet wired — those are Sprint 2 items. |
+
+### Background-deferred (do NOT lose track)
+- Batch 1 prod-deploy: push Sprint 1 + onboarding-fix to origin/main, set `NEXT_PUBLIC_BASE_URL=https://upsc.aimasteryedu.in` on Coolify, configure Google OAuth on Supabase Dashboard, re-run prod B5 → green.
+- Step 6 monitoring: Sentry/PostHog frontend + Coolify log shipping + UptimeRobot.
+- Secret rotation (5 leaked builds — see security-debt section).
+- 2 advisor warnings: RLS on comfyui_*; revoke anon EXECUTE on `is_admin` and `user_in_squad`.
+
+---
+
+## Prior active slice (CLOSED) — auth-foundation-production-verification (BMAD 6-step plan)
 
 | Step | Description | Status |
 |---|---|---|

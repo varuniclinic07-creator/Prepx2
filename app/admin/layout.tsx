@@ -21,6 +21,8 @@ export default async function AdminLayout({ children }: { children: React.ReactN
         <Link href="/admin/quizzes" className="block px-3 py-2 rounded-lg text-sm text-slate-300 hover:bg-slate-800">Quizzes</Link>
         <Link href="/admin/hermes" className="block px-3 py-2 rounded-lg text-sm text-slate-300 hover:bg-slate-800">Hermes</Link>
         <Link href="/admin/scraper" className="block px-3 py-2 rounded-lg text-sm text-slate-300 hover:bg-slate-800">Scraper</Link>
+        <Link href="/admin/research" className="block px-3 py-2 rounded-lg text-sm text-slate-300 hover:bg-slate-800">Research</Link>
+        <Link href="/admin/video" className="block px-3 py-2 rounded-lg text-sm text-slate-300 hover:bg-slate-800">Video</Link>
         <Link href="/admin/bot" className="block px-3 py-2 rounded-lg text-sm text-slate-300 hover:bg-slate-800">Bot</Link>
         <Link href="/admin/isa" className="block px-3 py-2 rounded-lg text-sm text-slate-300 hover:bg-slate-800">ISA</Link>
         <Link href="/admin/guides" className="block px-3 py-2 rounded-lg text-sm text-slate-300 hover:bg-slate-800">Guides</Link>

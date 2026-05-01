@@ -50,3 +50,19 @@ dist/
 .agents/
 .cline/
 .kiro/
+
+# Local Claude Code state — don't commit per-machine settings, worktrees, MCP creds
+.claude/worktrees/
+.claude/settings.local.json
+.claude/skills/
+.mcp.json
+
+# BMAD scratch tree (planning artifacts only kept selectively)
+_bmad/
+
+# Audit + planning scratch logs (keep PRD/architecture/UX/epics, drop daily logs)
+.a0proj/_bmad-output/audit/
+
+# DB seed backups
+supabase/*.sql.bak
+supabase/seed*.sql.bak

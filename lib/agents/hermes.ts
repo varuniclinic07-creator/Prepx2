@@ -1,5 +1,9 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 
+// State-machine surface only. Safe for client + server import.
+// Queue/dispatch logic (BullMQ-touching) lives in lib/agents/hermes-dispatch.ts
+// and must NEVER be imported from a client component.
+
 export const HERMES_STATES = [
   'idle','planning','ready','studying','quizzing','feedback','adapting','done'
 ] as const;
@@ -64,18 +68,4 @@ export async function getAllowedActions(state: HermesState): Promise<string[]> {
     case 'done': return ['start_new_day'];
     default: return [];
   }
-}
-
-export async function spawnAgent(
-  supabase: SupabaseClient,
-  agentType: 'study'|'write'|'speak'|'quiz',
-  task: Record<string,any>
-) {
-  await supabase.from('agent_tasks').insert({
-    user_id: task.userId,
-    agent_type: agentType,
-    status: 'queued',
-    payload: task,
-    created_at: new Date().toISOString()
-  });
 }
