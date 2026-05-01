@@ -14,7 +14,8 @@
     "test:e2e": "playwright test",
     "test:unit": "vitest run",
     "test:auth-slice:http": "node --env-file=.env.local scripts/verification/auth-slice-http.mjs",
-    "test:auth-slice:browser": "node --env-file=.env.local node_modules/@playwright/test/cli.js test --config=e2e/playwright.auth-slice.config.ts"
+    "test:auth-slice:browser": "node --env-file=.env.local node_modules/@playwright/test/cli.js test --config=e2e/playwright.auth-slice.config.ts",
+    "test:onboarding-flow": "node --env-file=.env.local node_modules/@playwright/test/cli.js test --config=e2e/playwright.onboarding-flow.config.ts"
   },
   "dependencies": {
     "@heroicons/react": "2.1.0",

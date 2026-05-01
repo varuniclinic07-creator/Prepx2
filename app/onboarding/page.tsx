@@ -17,6 +17,7 @@ export default function OnboardingPage() {
   const [submitted, setSubmitted] = useState(false);
   const [score, setScore] = useState(0);
   const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
   const [started, setStarted] = useState(false);
   const [prefLanguage, setPrefLanguage] = useState<'en' | 'hi'>('en');
   const router = useRouter();
@@ -45,17 +46,41 @@ export default function OnboardingPage() {
     setScore(correct);
     setSubmitted(true);
     setSaving(true);
+    setSaveError(null);
 
     try {
       const supabase = createClient();
       const { data: { user } } = await supabase.auth.getUser();
-      if (user) {
-        await supabase.from('users').update({ baseline_score: correct, preferred_language: prefLanguage }).eq('id', user.id);
-        await supabase.from('activity_log').insert({ user_id: user.id, event_type: 'diagnostic_completed', metadata: { score: correct, max: 5, language: prefLanguage } });
-        await createSession(supabase, user.id);
+      if (!user) {
+        setSaveError('Not signed in. Please log in again.');
+        setSaving(false);
+        return;
       }
-    } catch {
-      // pass through for E2E / CI without real Supabase
+
+      // RLS-silent updates affect 0 rows without raising — verify by reading
+      // the row back. Surfaces missing UPDATE policies instead of swallowing.
+      const { data: updated, error: updateError } = await supabase
+        .from('users')
+        .update({ baseline_score: correct, preferred_language: prefLanguage })
+        .eq('id', user.id)
+        .select('baseline_score')
+        .maybeSingle();
+
+      if (updateError) {
+        setSaveError(`Save failed: ${updateError.message}`);
+        setSaving(false);
+        return;
+      }
+      if (!updated || updated.baseline_score !== correct) {
+        setSaveError('Save did not persist. RLS may be blocking the update — please contact support.');
+        setSaving(false);
+        return;
+      }
+
+      await supabase.from('activity_log').insert({ user_id: user.id, event_type: 'diagnostic_completed', metadata: { score: correct, max: 5, language: prefLanguage } });
+      await createSession(supabase, user.id);
+    } catch (err) {
+      setSaveError(err instanceof Error ? err.message : 'Network error during save.');
     }
     setSaving(false);
   };
@@ -133,12 +158,17 @@ export default function OnboardingPage() {
                  score >= 2 ? 'Good start. We will reinforce fundamentals + weak areas.' :
                  'Building from the ground up. We have got you covered.'}
               </p>
+              {saveError && (
+                <div role="alert" className="bg-red-500/10 border border-red-500/30 rounded-lg p-3 text-sm text-red-300">
+                  {saveError}
+                </div>
+              )}
               <button
                 onClick={() => router.push('/')}
-                disabled={saving}
-                className="px-6 py-2 bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-bold rounded-xl transition"
+                disabled={saving || !!saveError}
+                className="px-6 py-2 bg-emerald-500 hover:bg-emerald-600 disabled:bg-slate-700 disabled:cursor-not-allowed text-slate-950 font-bold rounded-xl transition"
               >
-                {saving ? 'Saving...' : 'Go to Dashboard'}
+                {saving ? 'Saving...' : saveError ? 'Save failed' : 'Go to Dashboard'}
               </button>
             </div>
           )}

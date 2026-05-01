@@ -174,7 +174,8 @@ BACKEND_SECURITY_AUDIT.md called out 6 routes as missing auth/sig verify. Re-ins
 2. ~~Run Step 5 against production~~ — done; B4 PASS, B5 FAIL on `/logout` 500
 3. ~~Capture evidence~~ — `evidence/auth-slice-prod-2026-04-30.md`
 4. ~~Sprint 1 implementation + local verification~~ — done 2026-05-01; commit pending push
-5. **(User)** Decide: push Sprint 1 commit to origin/main → Coolify auto-deploys build #7
+4a. ~~Onboarding RLS bug fix~~ — done 2026-05-01. Bug: `public.users` had only SELECT policy → `update({baseline_score})` silently affected 0 rows → users stuck in /onboarding loop on every login. Fix: migration `047_users_self_update_policy.sql` (applied to cloud Supabase) + `app/onboarding/page.tsx` now reads back the row and surfaces RLS-deny via a visible error banner. Verified end-to-end with new spec `e2e/onboarding-flow.spec.ts` + `playwright.onboarding-flow.config.ts` + `npm run test:onboarding-flow` (signup → login → /onboarding → diagnostic → DB persist → logout → relogin lands on / not /onboarding). 2 stuck users (dr.anilkumarjain07, dranilkumarsharma4) backfilled with `baseline_score=2`. Pre-existing failure: `__tests__/components/QuizComponent.test.tsx` was already red on `575d90c` (HEAD before this fix) — not caused by this slice.
+5. **(User)** Decide: push Sprint 1 + onboarding-fix commits to origin/main → Coolify auto-deploys build #7
 6. **(User)** Add `NEXT_PUBLIC_BASE_URL=https://upsc.aimasteryedu.in` in Coolify env panel **before** redeploy. Then re-run prod B5; expect green.
 7. **(User)** Configure Google OAuth at Supabase Dashboard → Authentication → Providers. Add `https://upsc.aimasteryedu.in/auth/callback` to allowed redirect URLs.
 8. Production smoke (UI walkthrough on `https://upsc.aimasteryedu.in`) of Sprint 1 features
