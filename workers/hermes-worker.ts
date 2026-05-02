@@ -37,6 +37,10 @@ import {
 import { processResearchJob } from '../lib/scraper/processor';
 import { processRefineJob } from '../lib/refine/processors';
 import { processBundleJob } from '../lib/bundles/processors';
+import { processMnemonicJob } from '../lib/mnemonic/processors';
+import { processImagineJob } from '../lib/imagine/processors';
+import { processMindmapJob } from '../lib/mindmap/processors';
+import { processInterviewJob } from '../lib/interview/processors';
 
 const log = pino({
   name: 'hermes-worker',
@@ -248,27 +252,39 @@ function makeDeferredProcessor(deferredTo: 'B2-3' | 'B2-4', queue: QueueName) {
 // ──────────────────────────────────────────────────────────────────────────
 
 const PROCESSORS: Record<QueueName, (job: Job, taskId: string) => Promise<Record<string, any>>> = {
-  'coach-jobs':    processCoachJob,
-  'study-jobs':    processStudyJob,
-  'research-jobs': processResearchJob,
-  'content-jobs':  processContentJob,
-  'script-jobs':   processScriptJob,
-  'render-jobs':   processRenderJob,
-  'refine-jobs':   processRefineJob,
-  'bundle-jobs':   processBundleJob,
-  'dead-letter':   async (_job, taskId) => ({ taskId, note: 'observed by dead-letter consumer' }),
+  'coach-jobs':     processCoachJob,
+  'study-jobs':     processStudyJob,
+  'research-jobs':  processResearchJob,
+  'content-jobs':   processContentJob,
+  'script-jobs':    processScriptJob,
+  'render-jobs':    processRenderJob,
+  'refine-jobs':    processRefineJob,
+  'bundle-jobs':    processBundleJob,
+  'mnemonic-jobs':  processMnemonicJob,
+  'imagine-jobs':   processImagineJob,
+  'mindmap-jobs':   processMindmapJob,
+  'shorts-jobs':    async (_job, taskId) => ({ taskId, note: 'shorts processor — Sprint 4' }),
+  'ca-video-jobs':  async (_job, taskId) => ({ taskId, note: 'ca-video processor — Sprint 4' }),
+  'interview-jobs': processInterviewJob,
+  'dead-letter':    async (_job, taskId) => ({ taskId, note: 'observed by dead-letter consumer' }),
 };
 
 const AGENT_TYPE_FOR_QUEUE: Record<QueueName, string> = {
-  'coach-jobs':    'coach',
-  'study-jobs':    'study',
-  'research-jobs': 'research',
-  'content-jobs':  'content',
-  'script-jobs':   'script',
-  'render-jobs':   'render',
-  'refine-jobs':   'refine',
-  'bundle-jobs':   'bundle',
-  'dead-letter':   'dead_letter',
+  'coach-jobs':     'coach',
+  'study-jobs':     'study',
+  'research-jobs':  'research',
+  'content-jobs':   'content',
+  'script-jobs':    'script',
+  'render-jobs':    'render',
+  'refine-jobs':    'refine',
+  'bundle-jobs':    'bundle',
+  'mnemonic-jobs':  'mnemonic',
+  'imagine-jobs':   'imagine',
+  'mindmap-jobs':   'mindmap',
+  'shorts-jobs':    'shorts',
+  'ca-video-jobs':  'ca_video',
+  'interview-jobs': 'interview',
+  'dead-letter':    'dead_letter',
 };
 
 // ──────────────────────────────────────────────────────────────────────────

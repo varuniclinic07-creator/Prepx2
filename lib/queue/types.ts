@@ -65,6 +65,53 @@ export interface BundleJobPayload {
   bundleDate?: string; // YYYY-MM-DD; defaults to today (IST) if omitted
 }
 
+// Sprint 3 — premium artifact generation queues.
+//
+// Each of these jobs produces a row in its feature's table plus an asset/
+// manifest the UI can render. GPU-bound steps (Remotion / Manim / ComfyUI /
+// LTX 2.3) emit a render manifest; the actual GPU service consumes that
+// manifest out-of-band. The processor still completes successfully and the
+// row is queryable in a 'pending_render' state — never a stub.
+
+export interface MnemonicJobPayload {
+  taskId: string;
+  topicId: string;
+  userId?: string;             // null when generated for the public catalog
+  style?: 'acronym' | 'story' | 'rhyme' | 'visual';
+}
+
+export interface ImagineVideoJobPayload {
+  taskId: string;
+  topicQuery: string;          // free-text — "Big Bang", "Dinosaurs", "BCE timeline"
+  userId: string;
+  durationSeconds?: number;    // default 60, max 300
+}
+
+export interface MindmapJobPayload {
+  taskId: string;
+  topicId: string;
+  chapterId?: string;
+}
+
+export interface ShortsJobPayload {
+  taskId: string;
+  topicId: string;
+  conceptTag: string;          // syllabus tag the short focuses on
+  durationSeconds?: number;    // 120-300
+}
+
+export interface CaVideoJobPayload {
+  taskId: string;
+  bundleId: string;            // references ca_daily_bundles.id
+}
+
+export interface InterviewJobPayload {
+  taskId: string;
+  sessionId: string;
+  userId: string;
+  phase: 'panel-question' | 'debrief-render';
+}
+
 export type QueueName =
   | 'study-jobs'
   | 'research-jobs'
@@ -74,6 +121,12 @@ export type QueueName =
   | 'coach-jobs'
   | 'refine-jobs'
   | 'bundle-jobs'
+  | 'mnemonic-jobs'
+  | 'imagine-jobs'
+  | 'mindmap-jobs'
+  | 'shorts-jobs'
+  | 'ca-video-jobs'
+  | 'interview-jobs'
   | 'dead-letter';
 
 export const ALL_QUEUE_NAMES: QueueName[] = [
@@ -85,6 +138,12 @@ export const ALL_QUEUE_NAMES: QueueName[] = [
   'coach-jobs',
   'refine-jobs',
   'bundle-jobs',
+  'mnemonic-jobs',
+  'imagine-jobs',
+  'mindmap-jobs',
+  'shorts-jobs',
+  'ca-video-jobs',
+  'interview-jobs',
   'dead-letter',
 ];
 
@@ -98,7 +157,13 @@ export type AgentType =
   | 'render'
   | 'coach'
   | 'refine'
-  | 'bundle';
+  | 'bundle'
+  | 'mnemonic'
+  | 'imagine'
+  | 'mindmap'
+  | 'shorts'
+  | 'ca_video'
+  | 'interview';
 
 export const QUEUE_FOR_AGENT: Record<AgentType, QueueName> = {
   study:    'study-jobs',
@@ -109,4 +174,10 @@ export const QUEUE_FOR_AGENT: Record<AgentType, QueueName> = {
   coach:    'coach-jobs',
   refine:   'refine-jobs',
   bundle:   'bundle-jobs',
+  mnemonic: 'mnemonic-jobs',
+  imagine:  'imagine-jobs',
+  mindmap:  'mindmap-jobs',
+  shorts:   'shorts-jobs',
+  ca_video: 'ca-video-jobs',
+  interview:'interview-jobs',
 };
