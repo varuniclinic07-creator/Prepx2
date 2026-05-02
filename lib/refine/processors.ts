@@ -1,4 +1,3 @@
-import 'server-only';
 import { getAdminClient } from '../supabase-admin';
 import { verifyArtifact } from '../agents/content-verifier';
 import type { RefineJobPayload, RefineArtifactType } from '../queue/types';

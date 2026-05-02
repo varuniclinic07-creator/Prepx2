@@ -1,4 +1,3 @@
-import 'server-only';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { getQueue, getQueueDepths } from '../queue/queues';
 import { QUEUE_FOR_AGENT, type AgentType, type QueueName } from '../queue/types';

@@ -1,4 +1,3 @@
-import 'server-only';
 import { aiChat } from '../ai-router';
 
 // Bundle grouper (Sprint 2 / Epic 5.3).

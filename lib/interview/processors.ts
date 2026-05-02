@@ -1,4 +1,3 @@
-import 'server-only';
 import type { Job } from 'bullmq';
 import { getAdminClient } from '../supabase-admin';
 import { aiChat } from '../ai-router';

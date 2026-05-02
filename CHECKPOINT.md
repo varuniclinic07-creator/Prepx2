@@ -182,6 +182,18 @@ Each agent commits its own slice; cloud E2E + bundled commit after all 4 land.
 - Imagine extension chain currently caps at `duration_seconds=300`; the user-extension UX needs a clear "max reached" message — current QueryBox doesn't surface that yet.
 - Mindmap layout colors hard-coded to 8 named tokens (primary/cyan/saffron/success/warning/muted/magenta/gold); LLM is NOT prevented from emitting unknown colors — processor falls back to `primary` silently. Add an explicit normalization pass + admin warning in the next slice.
 
+**Sprint 3 E2E dispatch verification (2026-05-02 evening):**
+- `scripts/verification/sprint3-e2e-dispatch.mjs` exercises the real worker, real LLM cascade, real cloud Supabase: seeds topic + user, pre-inserts the imagine_videos + interview_sessions rows the API would create, dispatches all 4 jobs in parallel via BullMQ + agent_tasks, polls each task to terminal, then asserts the per-feature DB rows were actually populated.
+- Result: **15/15 PASS** — mnemonic_artifacts (4 styles), imagine_videos (7 beats / 60s / tag=polity.constitution), animated_mindmaps (9 nodes across depths 0-3 with tree layout), interview_turns (3 judges with valid questions). All 4 jobs reached `completed` status; 0 dead-letter, 0 retries needed.
+- AI-router fixes that landed alongside (in `lib/ai-router.ts`):
+  - Provider-factory throws now treated as recoverable cascade misses instead of aborting the whole loop.
+  - Empty `content` (Ollama, some Kilo) now flips circuit + falls through instead of returning `''` to processors.
+  - `<think>...</think>` reasoning preamble (NVIDIA / GLM) stripped before returning.
+  - When `jsonMode: true`, responses with no `{` or `[` (NVIDIA "OK"-style replies) flip circuit + fall through.
+  - PROVIDERS list expanded from 5 round-robin entries to ~33 fixed (key, model) pairs — every Groq key, every Kilo (key × model) combo, every NVIDIA model gets its own slot. A single bad credential (e.g. groq-1 "Organization restricted") no longer shadows the rest of its tier.
+- Processor source-of-truth fix that landed alongside: 15 server-only `import 'server-only'` lines removed from processor / agent / pdf / scraper files so the BullMQ worker (Node, not browser) can actually load them. The `'server-only'` guard is meant for files that must NOT bundle into a client component — workers don't need it and the import was crashing the Node entry point.
+- E2E script (`scripts/verification/sprint3-e2e-dispatch.mjs`) now sets explicit `attempts: 3 + exponential 5s backoff` on `q.add()` so behaviour matches production `DEFAULT_JOB_OPTS`; deadline raised from 4 to 8 minutes to accommodate 3 retries × backoff in the worst case.
+
 ### Background-deferred (do NOT lose track)
 - Batch 1 prod-deploy: push Sprint 1 + onboarding-fix to origin/main, set `NEXT_PUBLIC_BASE_URL=https://upsc.aimasteryedu.in` on Coolify, configure Google OAuth on Supabase Dashboard, re-run prod B5 → green.
 - Step 6 monitoring: Sentry/PostHog frontend + Coolify log shipping + UptimeRobot.

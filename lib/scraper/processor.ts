@@ -1,4 +1,3 @@
-import 'server-only';
 // Real BullMQ processor for research-jobs. Replaces the B2-4 deferred no-op.
 //
 // One agent_tasks row per source. The processor runs the full

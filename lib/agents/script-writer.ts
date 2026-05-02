@@ -1,4 +1,3 @@
-import 'server-only';
 import { aiChat } from '../ai-router';
 import { fleschKincaidGrade } from '../text/readability';
 

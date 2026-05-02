@@ -90,8 +90,62 @@ function nvidiaInstance(): { client: OpenAI; model: string; keyId: string } {
 }
 
 // ── Ordered provider list for fallback ──
+// We register each Groq key, each Kilo key×model combo, and each NVIDIA model
+// as its own provider so the outer cascade naturally walks through every
+// working credential before giving up. groqInstance / kiloInstance / nvidiaInstance
+// are kept for round-robin convenience callers, but the cascade uses fixed
+// (key, model) pairs so a single bad key doesn't shadow the rest of its tier.
 type ProviderFactory = () => { client: OpenAI; model: string; keyId: string };
-const PROVIDERS: ProviderFactory[] = [nineRouter, ollama, groqInstance, kiloInstance, nvidiaInstance];
+
+function groqAt(idx: number): ProviderFactory {
+  return () => {
+    const key = GROQ_KEYS[idx];
+    if (!key) throw new Error(`groq-${idx + 1}: no key`);
+    return {
+      client: new OpenAI({ baseURL: env('GROQ_BASE_URL', 'https://api.groq.com/openai/v1'), apiKey: key, timeout: 30000 }),
+      model: env('GROQ_MODEL', 'llama-3.3-70b-versatile'),
+      keyId: `groq-${idx + 1}`,
+    };
+  };
+}
+
+function kiloAt(keyIdx: number, modelIdx: number): ProviderFactory {
+  return () => {
+    const key = KILO_KEYS[keyIdx];
+    const model = KILO_MODELS[modelIdx];
+    if (!key) throw new Error(`kilo-k${keyIdx + 1}-m${modelIdx + 1}: no key`);
+    return {
+      client: new OpenAI({ baseURL: env('KILO_BASE_URL', 'https://api.kilo.ai/api/gateway'), apiKey: key, timeout: 60000 }),
+      model,
+      keyId: `kilo-k${keyIdx + 1}-m${modelIdx + 1}`,
+    };
+  };
+}
+
+function nvidiaAt(modelIdx: number): ProviderFactory {
+  return () => {
+    const model = NVIDIA_MODELS[modelIdx];
+    if (!model) throw new Error(`nvidia-${modelIdx + 1}: no model`);
+    return {
+      client: new OpenAI({ baseURL: env('NVIDIA_BASE_URL', 'https://integrate.api.nvidia.com/v1'), apiKey: env('NVIDIA_API_KEY'), timeout: 60000 }),
+      model,
+      keyId: `nvidia-${modelIdx + 1}`,
+    };
+  };
+}
+
+const PROVIDERS: ProviderFactory[] = (() => {
+  const list: ProviderFactory[] = [];
+  list.push(nineRouter);
+  list.push(ollama);
+  for (let i = 0; i < GROQ_KEYS.length; i++) list.push(groqAt(i));
+  for (let k = 0; k < KILO_KEYS.length; k++) for (let m = 0; m < KILO_MODELS.length; m++) list.push(kiloAt(k, m));
+  for (let m = 0; m < NVIDIA_MODELS.length; m++) list.push(nvidiaAt(m));
+  return list;
+})();
+// Silence "unused" for the convenience round-robin helpers — they are part of
+// the file's exported surface for callers that want a single instance.
+void groqInstance; void kiloInstance; void nvidiaInstance;
 
 // ── Circuit breaker per provider ──
 const CB = new Map<string, { failures: number; lastFailAt: number; open: boolean }>();
@@ -123,7 +177,15 @@ export async function aiChat(opts: {
   const lastErrs: string[] = [];
 
   for (const factory of PROVIDERS) {
-    const { client, model, keyId } = factory();
+    let client: OpenAI, model: string, keyId: string;
+    try {
+      ({ client, model, keyId } = factory());
+    } catch (err: any) {
+      const msg = err?.message || String(err);
+      console.error(`[AI Router] provider factory FAILED: ${msg.slice(0, 200)}`);
+      lastErrs.push(`factory: ${msg.slice(0, 120)}`);
+      continue;
+    }
     const state = cbState(keyId);
     if (state.open) { lastErrs.push(`${keyId}: circuit open`); continue; }
 
@@ -135,7 +197,28 @@ export async function aiChat(opts: {
         max_tokens: maxTokens,
         ...(jsonMode ? { response_format: { type: 'json_object' as const } } : {}),
       });
-      const text = chat.choices?.[0]?.message?.content || '';
+      let text = chat.choices?.[0]?.message?.content || '';
+      // Strip reasoning preamble that some NVIDIA / GLM models emit even with
+      // jsonMode (`<think> ... </think>` blocks before the actual answer).
+      text = text.replace(/<think>[\s\S]*?<\/think>\s*/gi, '').trim();
+      if (!text || text.length === 0) {
+        console.error(`[AI Router] ${keyId} returned empty content — falling through`);
+        cbFail(keyId);
+        lastErrs.push(`${keyId}: empty content`);
+        continue;
+      }
+      // For jsonMode requests, require the response to actually contain a JSON
+      // object/array. Some reasoning tiers return `"OK"` style replies that
+      // fail downstream parsers; try the next tier rather than ship that.
+      if (jsonMode) {
+        const hasObject = /[\{\[]/.test(text);
+        if (!hasObject) {
+          console.error(`[AI Router] ${keyId} returned no JSON for jsonMode — falling through`);
+          cbFail(keyId);
+          lastErrs.push(`${keyId}: jsonMode response had no { or [`);
+          continue;
+        }
+      }
       cbSuccess(keyId);
       return text;
     } catch (err: any) {

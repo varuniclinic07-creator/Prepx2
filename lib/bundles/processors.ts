@@ -1,4 +1,3 @@
-import 'server-only';
 import type { Job } from 'bullmq';
 import { getAdminClient } from '../supabase-admin';
 import { generateDailyBundle, type ArticleSummary } from '../agents/bundle-grouper';

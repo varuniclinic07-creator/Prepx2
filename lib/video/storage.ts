@@ -1,4 +1,3 @@
-import 'server-only';
 import { getAdminClient } from '../supabase-admin';
 
 export const VIDEOS_BUCKET = 'videos';

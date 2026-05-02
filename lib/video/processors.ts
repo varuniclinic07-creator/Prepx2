@@ -1,4 +1,3 @@
-import 'server-only';
 import { getAdminClient } from '../supabase-admin';
 import { generateLectureScript } from '../agents/script-writer';
 import {

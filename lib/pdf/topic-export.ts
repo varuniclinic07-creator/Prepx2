@@ -1,4 +1,3 @@
-import 'server-only';
 import { PDFDocument, StandardFonts, rgb } from 'pdf-lib';
 
 // Single shared helper used by every Sprint 3 feature ('download as PDF'
