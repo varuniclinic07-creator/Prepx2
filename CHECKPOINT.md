@@ -4,6 +4,39 @@
 
 ---
 
+## 🚨 INITIATING DIRECTIVE (the user's standing demand — never ignore, never deviate, even on session loss)
+
+This block is the user's permanent demand for PrepX, repeated three times across sessions (2026-05-01 ×2, 2026-05-02). It supersedes any patch-style impulse, any "good enough" shortcut, and any feature scope reduction. Re-read it before any code edit.
+
+**Source of truth:** `app concepts.md` at repo root is THE demand. Every feature listed there must ship end-to-end working. No scaffolding, no dumping, no stubs. After every batch of 4 features, the full workflow of each is checked end-to-end before the batch is called done.
+
+**Posture:** No feature may feel like time-passing. Every feature must be so outstanding that a UPSC CSE aspirant has zero reason to open another platform, textbook, coaching note, or YouTube channel. If a feature is shallower than what's free elsewhere, it isn't done.
+
+**Mandatory in-app agent roster (real working agents — not roleplay, not chat-only):**
+1. **Hermes** — orchestrator brain. Researches what UPSC CSE demands today (PIB, Yojana, Kurukshetra, VisionIAS, Insights, IASBaba, Drishti, IASCore, 2nd ARC). Watches every other agent's work and dispatches tasks 24/7. Every other agent ONLY consumes from Hermes's queue — none run independently.
+2. **Teacher Team** — Prelims Guide, Mains Guide, Interview Guide. Each works on the user's content within its own paper/subject/topic scope. Each has the on-demand topic-imagination video task built in.
+3. **Technical Agent** — owns infra, env, deploys, queue health, LLM router failover, security hardening. Surfaces issues to Hermes; Hermes dispatches fixes.
+4. **Script-Writing Agent** — writes 30–45 min lecture scripts for **Remotion + Manim + ComfyUI + LTX 2.3** (note: 2.3, not 2.0).
+5. **Research / Content-Writing Agent** — auto-generates Smart Books with Flesch-Kincaid ≤ 10.5 and ≥3 source citations.
+6. **Live Interview Panel** — three AI influencer-judges holding a real-time mock interview, with an instant 3D-VFX debrief video.
+
+**Premium feature mandates (every one of these is non-negotiable, must work end-to-end):**
+- **3D graphics throughout the app** (React Three Fiber). Includes a 3D syllabus navigator and a 3D note-taking surface (notes themselves rendered in 3D — not a 2D page with a 3D widget).
+- **On-demand topic-imagination videos.** The user can ask about ANY topic — including BC/AD/BCE eras, dinosaur periods, Earth formation, universe formation, Big Bang, cosmos — and the app generates a 3D-VFX-animated video in plain easy language. The user can extend the duration or deepen the conceptual clarity on the same topic. Notes are NEVER ratta-style; one read should retain the topic deeply, for a long time.
+- **Real classroom lecture videos** (board + teacher explaining), produced via Remotion + Manim + ComfyUI + LTX 2.3 — not just narration over slides.
+- **Live interview panel** that feels like an actual interview, with three AI influencer-judges and an instant 3D-VFX debrief video.
+- **Visual-first everything** — no rote-memorization paths anywhere.
+
+**UI bar:** Current UI was called "bakwas, single sheet with on/off buttons, no animations, no smooth transitions, no hero, no modern look." Reference is `C:/Users/DR-VARUNI/Desktop/New folder (2)/ui by google/` — the Google AI Studio one-prompt UI (Next 15 + React 19 + motion 12 + tailwind 4.1 + recharts + lucide-react). Claude Opus 4.7 (1M) is expected to clear that bar without prompting.
+
+**Process:** Batch of 4 features at a time, audit → code → test → validate → end-to-end. Use whatever multi-agent dispatch (parallel or sequential) makes the work fastest without hurting quality. Best skills, best tools, real web app, fast but perfect — no time waste.
+
+**Session-loss resumability:** All standing instructions live in `C:\Users\DR-VARUNI\.claude\projects\C--Users-DR-VARUNI-Desktop-New-folder-PrepX\memory\` (auto-loaded each session) AND in this block at the top of CHECKPOINT.md. If the session is interrupted or lost, a fresh session loads memory + reads this block + reads the active-slice section below and resumes exactly where the previous session stopped. This directive is NEVER ignored, even on session loss.
+
+The full long-form version of this directive is at `feedback_user_mega_directive.md` in the memory directory.
+
+---
+
 ## 🟥 Resume protocol (read FIRST on any new session)
 
 If you are a fresh Claude session opening this repo, do these in order BEFORE any code edits:
