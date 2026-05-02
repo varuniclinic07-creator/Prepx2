@@ -1,6 +1,8 @@
 import { getTopic } from '@/lib/supabase';
 import { TopicViewer } from '@/components/TopicViewer';
 import { createClient } from '@/lib/supabase-server';
+import { MnemonicCards, type MnemonicCard } from '@/components/mnemonic/MnemonicCards';
+import { MindmapSection } from '@/components/3d/MindmapSection';
 import Link from 'next/link';
 
 export default async function TopicPage({ params }: { params: Promise<{ id: string }> }) {
@@ -23,6 +25,38 @@ export default async function TopicPage({ params }: { params: Promise<{ id: stri
     .eq('status', 'published')
     .order('chapter_num', { ascending: true });
 
+  // Sprint 3 / S3-1: pull mnemonics for this topic. RLS scopes to catalog +
+  // owner so the unauthenticated case yields nothing — no leak.
+  const { data: mnemonics } = await sb.from('mnemonic_artifacts')
+    .select('id, topic_id, user_id, topic_query, style, text, explanation, scene_spec, render_status, comfy_video_url')
+    .eq('topic_id', id)
+    .order('created_at', { ascending: false });
+
+  // Sprint 3 / S3-3: latest ready animated mindmap + nodes for this topic.
+  const { data: mindmapRow } = await sb
+    .from('animated_mindmaps')
+    .select('id, topic_id, chapter_id, title, layout, status, preview_url, created_at')
+    .eq('topic_id', id)
+    .eq('status', 'ready')
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  let mindmapNodes: any[] = [];
+  if (mindmapRow?.id) {
+    const { data: nodes } = await sb
+      .from('mindmap_nodes')
+      .select('id, parent_id, label, summary, depth, position, color_hint')
+      .eq('mindmap_id', mindmapRow.id)
+      .order('depth', { ascending: true });
+    mindmapNodes = nodes || [];
+  }
+  const { data: { user: mindmapAuthUser } } = await sb.auth.getUser();
+  let isMindmapAdmin = false;
+  if (mindmapAuthUser) {
+    const { data: prof } = await sb.from('users').select('role').eq('id', mindmapAuthUser.id).maybeSingle();
+    isMindmapAdmin = prof?.role === 'admin';
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -38,6 +72,18 @@ export default async function TopicPage({ params }: { params: Promise<{ id: stri
         </Link>
       </div>
       <TopicViewer topic={topic} />
+
+      {mnemonics && mnemonics.length > 0 && (
+        <MnemonicCards items={mnemonics as unknown as MnemonicCard[]} />
+      )}
+
+      <MindmapSection
+        topicId={id}
+        isAdmin={isMindmapAdmin}
+        initialMindmap={mindmapRow as any}
+        initialNodes={mindmapNodes as any}
+      />
+
 
       {chapters && chapters.length > 0 && (
         <section className="space-y-6">

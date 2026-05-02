@@ -85,6 +85,8 @@ export interface ImagineVideoJobPayload {
   topicQuery: string;          // free-text — "Big Bang", "Dinosaurs", "BCE timeline"
   userId: string;
   durationSeconds?: number;    // default 60, max 300
+  videoId?: string;            // imagine_videos.id pre-inserted by API; processor populates the row
+  extendVideoId?: string;      // when set, processor appends ~30s of beats to the existing row
 }
 
 export interface MindmapJobPayload {

@@ -133,10 +133,10 @@ User mega-directive: every premium feature must ship **with** its 3D/video anima
 
 | # | Feature | Owner queue | Migration | Status |
 |---|---|---|---|---|
-| S3-1 | Mnemonic Engine v2 — every mnemonic ships with bundled 3D animation (acronym/story/rhyme/visual) | `mnemonic-jobs` | 057 | foundation only |
-| S3-2 | Topic-Imagination Videos — any topic (BCE, dinosaurs, Big Bang, cosmos) → 3D-VFX video, extendable duration | `imagine-jobs` | 058 | foundation only |
-| S3-3 | Animated Mindmaps per chapter (3D node graph the user can rotate + traverse) | `mindmap-jobs` | 059 | foundation only |
-| S3-8 | Live Interview Panel — 3 AI judges, real-time mock interview, 3D-VFX debrief video | `interview-jobs` | 064 | foundation only |
+| S3-1 | Mnemonic Engine v2 — every mnemonic ships with bundled 3D animation (acronym/story/rhyme/visual) | `mnemonic-jobs` | 057 | **landed 2026-05-02** |
+| S3-2 | Topic-Imagination Videos — any topic (BCE, dinosaurs, Big Bang, cosmos) → 3D-VFX video, extendable duration | `imagine-jobs` | 058 | **landed 2026-05-02** |
+| S3-3 | Animated Mindmaps per chapter (3D node graph the user can rotate + traverse) | `mindmap-jobs` | 059 | **landed 2026-05-02** |
+| S3-8 | Live Interview Panel — 3 AI judges, real-time mock interview, 3D-VFX debrief video | `interview-jobs` | 064 | **landed 2026-05-02** |
 
 **Foundation commit `61b2388` (2026-05-02 — landed on main):**
 - `supabase/migrations/057_mnemonic_artifacts.sql` — `mnemonic_artifacts` table per topic with style enum, scene_spec jsonb, render_status enum, free-tier limit logic.
@@ -160,6 +160,27 @@ User mega-directive: every premium feature must ship **with** its 3D/video anima
 4. **S3-8 interview** — fill `lib/interview/processors.ts` (3-judge prompts, panel-question + debrief-render phases); `app/interview/{page,Panel,Debrief}.tsx`; smoke covers session start → question → answer → debrief generation.
 
 Each agent commits its own slice; cloud E2E + bundled commit after all 4 land.
+
+**Bundled-landing commit (2026-05-02):**
+- `lib/mnemonic/processors.ts` (211 LOC) — LLM emits 4 styles per topic; free tier (`subscription_status='free'`) gets only acronym + visual, paid + catalog gets all 4; one row per style with `render_status='r3f_only'` + parsed SceneSpec; `app/admin/mnemonics/{page,MnemonicRow,RegenButton}.tsx` + `/api/admin/mnemonics` + `/api/mnemonics/[id]/rate`; `components/mnemonic/MnemonicCards.tsx` consumed by `app/topic/[id]/page.tsx`; `/api/topic/[id]/mnemonics` GET.
+- `lib/imagine/processors.ts` (331 LOC) — two-mode processor: generate (fills empty pre-inserted row with beats + scene_specs + syllabus_tag) and extend (appends ~30s of beats, bumps duration_seconds). Bad scenes drop to safe placeholder so beats never goes empty. `app/imagine/{page,QueryBox,VideoPlayer}.tsx` + `/api/imagine`, `/api/imagine/[id]`, `/api/imagine/[id]/extend`. Smoke covers RLS owner-isolation, extension chain, duration cap=300 CHECK.
+- `lib/mindmap/processors.ts` (425 LOC) — LLM emits hierarchical node tree, deterministic 3D layout (radial/tree/force/timeline), two-pass insert (root → BFS by depth so child rows reference real parent uuids), depth cap 6 enforced via CHECK. `components/3d/{Mindmap3D,MindmapSection}.tsx` + `/api/admin/mindmaps` + `/api/topic/[id]/mindmap` + `app/admin/mindmaps/{page,RegenerateButton}.tsx`. Smoke asserts CASCADE, depth boundary, node-count round-trip.
+- `lib/interview/processors.ts` (385 LOC) — phase-dispatched: `panel-question` generates next round of 3 questions (one per judge persona — chairperson/expert/behavioural), persists as interview_turns rows with empty answers; `debrief-render` scores every answered turn, renders holistic debrief (summary + strengths + weaknesses + 3D scene_spec). `app/interview/{page,StartInterviewForm}.tsx` + `app/interview/[id]/{page,Panel,Debrief}.tsx` + `/api/interview`, `/api/interview/[id]/{answer,end}`. Smoke seed user fixed (auth.admin.createUser then upsert without role override since handle_new_user already assigns the default `aspirant`).
+- `lib/queue/types.ts` — added `videoId` + `extendVideoId` optional fields to ImagineVideoJobPayload.
+
+**Verification:**
+- `npm run build` GREEN — all new routes registered: `/imagine` (279 kB — R3F payload), `/interview` (1.05 kB), `/interview/[id]` (4.39 kB), `/mnemonics` (1.74 kB), `/admin/mindmaps`, `/admin/mnemonics`, plus all `/api/*` mirrors.
+- 4/4 cloud-Supabase smokes PASS:
+  - `mnemonic-engine-smoke.mjs` 11/11 (4 styles inserted, scene_spec validates, style/render_status CHECK rejects, rating UNIQUE 23505, score CHECK)
+  - `imagine-video-smoke.mjs` 9/9 (fresh insert with empty arrays, 30s update, RLS owner-isolation, 60s extension, duration_seconds=700 CHECK reject)
+  - `mindmap-smoke.mjs` 11/11 (root + 4 depth-1 + 8 depth-2 = 13 nodes, depth=6 OK / depth=7 CHECK reject, status flip + updated_at advance, CASCADE delete)
+  - `interview-panel-smoke.mjs` 13/13 (3 judges per turn, UNIQUE(session_id, turn_index, judge), score CHECK 0-10, debrief UNIQUE(session_id), CASCADE)
+
+**Honest gaps (deferred to Sprint 3 part 2 — not blocking the bundle commit):**
+- All 4 features ship as `render_status='r3f_only'` (browser R3F only). The Remotion + Manim + ComfyUI + LTX 2.3 baked-MP4 pipeline is the next sub-batch — `lib/video/processors.ts` already has the render driver but the 30-45min ComfyUI workflow JSON is still TODO from Sprint 2.
+- Interview-panel smoke does NOT exercise the LLM judge prompts end-to-end (would burn API calls); processor logic verified by reading lib/interview/processors.ts but a real session E2E (start → 5 turns × 3 judges → debrief render) belongs in a Playwright spec, not a SQL smoke.
+- Imagine extension chain currently caps at `duration_seconds=300`; the user-extension UX needs a clear "max reached" message — current QueryBox doesn't surface that yet.
+- Mindmap layout colors hard-coded to 8 named tokens (primary/cyan/saffron/success/warning/muted/magenta/gold); LLM is NOT prevented from emitting unknown colors — processor falls back to `primary` silently. Add an explicit normalization pass + admin warning in the next slice.
 
 ### Background-deferred (do NOT lose track)
 - Batch 1 prod-deploy: push Sprint 1 + onboarding-fix to origin/main, set `NEXT_PUBLIC_BASE_URL=https://upsc.aimasteryedu.in` on Coolify, configure Google OAuth on Supabase Dashboard, re-run prod B5 → green.
