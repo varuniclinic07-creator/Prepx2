@@ -144,6 +144,30 @@ export async function runHermesResearchSweep(supabase: SupabaseClient): Promise<
   return { sourcesQueued: queued };
 }
 
+export async function runHermesBundleSweep(supabase: SupabaseClient): Promise<{
+  taskId: string;
+  scheduledFor: string;
+}> {
+  // Today in IST — matches the cron timezone (Asia/Kolkata) in the worker.
+  const fmt = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Kolkata',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  });
+  const bundleDate = fmt.format(new Date()); // YYYY-MM-DD
+
+  const result = await spawnAgent(supabase, {
+    agentType: 'bundle',
+    payload: {
+      source: 'hermes-bundle-sweep',
+      bundleDate,
+    },
+  });
+
+  return { taskId: result.taskId, scheduledFor: bundleDate };
+}
+
 export async function runHermesContentSweep(supabase: SupabaseClient): Promise<{
   topicsQueued: number;
 }> {

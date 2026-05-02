@@ -1,5 +1,6 @@
 import 'server-only';
 import { aiChat } from '../ai-router';
+import { fleschKincaidGrade } from '../text/readability';
 
 // Script Writer Agent (B2-3, Epic 6.1).
 // Generates a 30-45 minute lecture script for a UPSC topic with structured
@@ -51,23 +52,6 @@ Output JSON ONLY, no preamble. Schema:
   "durationSeconds": int,
   "citations": [{"title": "string", "url": "string"}]
 }`;
-
-function fleschKincaidGrade(text: string): number | null {
-  const sentences = text.split(/[.!?]+/).filter(s => s.trim().length > 0).length;
-  const words = text.trim().split(/\s+/).filter(Boolean);
-  if (sentences === 0 || words.length === 0) return null;
-  const syllables = words.reduce((acc, w) => acc + countSyllables(w), 0);
-  return Math.round(((0.39 * (words.length / sentences)) + (11.8 * (syllables / words.length)) - 15.59) * 10) / 10;
-}
-
-function countSyllables(word: string): number {
-  const w = word.toLowerCase().replace(/[^a-z]/g, '');
-  if (!w) return 0;
-  const groups = w.match(/[aeiouy]+/g) || [];
-  let count = groups.length;
-  if (w.endsWith('e') && count > 1) count -= 1;
-  return Math.max(1, count);
-}
 
 export interface GenerateScriptInput {
   topicTitle: string;

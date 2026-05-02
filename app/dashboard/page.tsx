@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
-import { ArrowRight, BookOpen, Coins, Library, Swords } from 'lucide-react';
+import { ArrowRight, BookOpen, Coins, Library, Newspaper, Swords } from 'lucide-react';
 import { createClient } from '@/lib/supabase-server';
 import { getUser } from '@/lib/auth';
 import { generateDailyPlan } from '@/lib/plan-generator';
@@ -12,7 +12,6 @@ import { Pill } from '@/components/ui/Pill';
 import { Button } from '@/components/ui/Button';
 import { DashboardGreeting } from '@/components/dashboard/DashboardGreeting';
 import { HermesFeed, type HermesTaskRow } from '@/components/dashboard/HermesFeed';
-import { WeakAreaRadar, type WeakAreaPoint } from '@/components/dashboard/WeakAreaRadar';
 import { RecentAttempts, type RecentAttempt } from '@/components/dashboard/RecentAttempts';
 import { headers } from 'next/headers';
 
@@ -22,18 +21,16 @@ export default async function DashboardPage() {
 
   const supabase = await createClient();
 
-  const [profileRes, balanceRes, weakRes, hermesRes, attemptsRes, astraRes] = await Promise.allSettled([
+  // Weak-area data is intentionally NOT surfaced on the dashboard — Hermes
+  // injects review tasks into the daily plan invisibly so the user sees
+  // forward progress, not a "you are weak in X" diagnostic.
+  const [profileRes, balanceRes, hermesRes, attemptsRes, astraRes] = await Promise.allSettled([
     supabase
       .from('users')
       .select('baseline_score, streak_count, role, full_name, preferred_language')
       .eq('id', user.id)
       .single(),
     supabase.from('user_balances').select('coins').eq('user_id', user.id).maybeSingle(),
-    supabase
-      .from('user_weak_areas')
-      .select('topic_id, gap_type, severity, topics(subject)')
-      .eq('user_id', user.id)
-      .limit(60),
     supabase
       .from('agent_tasks')
       .select('id, agent_type, status, payload, created_at')
@@ -91,19 +88,6 @@ export default async function DashboardPage() {
   const planTasks: { type: string; status: string }[] = plan?.tasks ?? [];
   const planComplete = planTasks.filter((t) => t.status === 'completed').length;
   const planTotal = planTasks.length;
-
-  // Weak-area radar — group severities by subject.
-  const weakRows = weakRes.status === 'fulfilled' ? weakRes.value.data ?? [] : [];
-  const subjectSeverity = new Map<string, number>();
-  for (const row of weakRows as Array<{ severity: number; topics?: { subject?: string } | { subject?: string }[] | null }>) {
-    const topicsField = Array.isArray(row.topics) ? row.topics[0] : row.topics;
-    const subject = topicsField?.subject ?? 'unknown';
-    subjectSeverity.set(subject, Math.max(subjectSeverity.get(subject) ?? 0, row.severity ?? 0));
-  }
-  const weakRadarData: WeakAreaPoint[] = Array.from(subjectSeverity.entries()).map(([subject, severity]) => ({
-    subject: subject.replace(/-/g, ' '),
-    severity,
-  }));
 
   // Hermes feed.
   const hermesTasks: HermesTaskRow[] =
@@ -193,6 +177,24 @@ export default async function DashboardPage() {
               </Link>
             </GlassCard>
 
+            <GlassCard glow="cyan" padding="md">
+              <CardHeader>
+                <div className="flex items-center gap-2">
+                  <Newspaper className="h-4 w-4 text-cyan-400" />
+                  <CardTitle>Today&apos;s Current Affairs</CardTitle>
+                </div>
+                <Pill tone="cyan">7 AM IST</Pill>
+              </CardHeader>
+              <p className="mb-4 text-sm leading-relaxed text-white/65">
+                Hermes clusters the day&apos;s UPSC-relevant news into a single bundle with prelims/mains tagging and key-points per article.
+              </p>
+              <Link href="/current-affairs">
+                <Button variant="primary" size="sm">
+                  Open Current Affairs <ArrowRight size={14} />
+                </Button>
+              </Link>
+            </GlassCard>
+
             <Card padding="md">
               <CardHeader>
                 <CardTitle>Recent quiz attempts</CardTitle>
@@ -213,13 +215,6 @@ export default async function DashboardPage() {
               </CardHeader>
               <HermesFeed tasks={hermesTasks} />
             </GlassCard>
-
-            <Card padding="md">
-              <CardHeader>
-                <CardTitle>Vulnerability heatmap</CardTitle>
-              </CardHeader>
-              <WeakAreaRadar data={weakRadarData} />
-            </Card>
 
             <div className="grid grid-cols-2 gap-4">
               <DashboardTeaser

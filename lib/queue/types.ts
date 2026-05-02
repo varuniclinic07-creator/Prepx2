@@ -47,6 +47,24 @@ export interface DeadLetterPayload {
   reason: string;
 }
 
+export type RefineArtifactType =
+  | 'lecture_script'
+  | 'smart_book_chapter'
+  | 'research_article'
+  | 'quiz_question';
+
+export interface RefineJobPayload {
+  taskId: string;
+  artifactType: RefineArtifactType;
+  artifactId: string;
+  retriggerCount?: number;
+}
+
+export interface BundleJobPayload {
+  taskId: string;
+  bundleDate?: string; // YYYY-MM-DD; defaults to today (IST) if omitted
+}
+
 export type QueueName =
   | 'study-jobs'
   | 'research-jobs'
@@ -54,6 +72,8 @@ export type QueueName =
   | 'script-jobs'
   | 'render-jobs'
   | 'coach-jobs'
+  | 'refine-jobs'
+  | 'bundle-jobs'
   | 'dead-letter';
 
 export const ALL_QUEUE_NAMES: QueueName[] = [
@@ -63,6 +83,8 @@ export const ALL_QUEUE_NAMES: QueueName[] = [
   'script-jobs',
   'render-jobs',
   'coach-jobs',
+  'refine-jobs',
+  'bundle-jobs',
   'dead-letter',
 ];
 
@@ -74,7 +96,9 @@ export type AgentType =
   | 'content'
   | 'script'
   | 'render'
-  | 'coach';
+  | 'coach'
+  | 'refine'
+  | 'bundle';
 
 export const QUEUE_FOR_AGENT: Record<AgentType, QueueName> = {
   study:    'study-jobs',
@@ -83,4 +107,6 @@ export const QUEUE_FOR_AGENT: Record<AgentType, QueueName> = {
   script:   'script-jobs',
   render:   'render-jobs',
   coach:    'coach-jobs',
+  refine:   'refine-jobs',
+  bundle:   'bundle-jobs',
 };

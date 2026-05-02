@@ -40,6 +40,9 @@ export async function POST(req: NextRequest) {
       topicId,
       durationMinutes,
       language,
+      // Auto-trigger refinement: as soon as the script-job persists a draft
+      // video_scripts row, the worker will spawn a refine-job for it.
+      autoRefine: true,
     },
     priority: 3,
   });

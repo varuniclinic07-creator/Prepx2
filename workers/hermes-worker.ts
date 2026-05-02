@@ -25,6 +25,7 @@ import {
   runHermesPlanner,
   runHermesResearchSweep,
   runHermesContentSweep,
+  runHermesBundleSweep,
   spawnAgent,
 } from '../lib/agents/hermes-dispatch';
 import { prelimsGuide, mainsGuide, interviewGuide } from '../lib/agents/guide-agents';
@@ -34,6 +35,8 @@ import {
   processRenderJob,
 } from '../lib/video/processors';
 import { processResearchJob } from '../lib/scraper/processor';
+import { processRefineJob } from '../lib/refine/processors';
+import { processBundleJob } from '../lib/bundles/processors';
 
 const log = pino({
   name: 'hermes-worker',
@@ -251,6 +254,8 @@ const PROCESSORS: Record<QueueName, (job: Job, taskId: string) => Promise<Record
   'content-jobs':  processContentJob,
   'script-jobs':   processScriptJob,
   'render-jobs':   processRenderJob,
+  'refine-jobs':   processRefineJob,
+  'bundle-jobs':   processBundleJob,
   'dead-letter':   async (_job, taskId) => ({ taskId, note: 'observed by dead-letter consumer' }),
 };
 
@@ -261,6 +266,8 @@ const AGENT_TYPE_FOR_QUEUE: Record<QueueName, string> = {
   'content-jobs':  'content',
   'script-jobs':   'script',
   'render-jobs':   'render',
+  'refine-jobs':   'refine',
+  'bundle-jobs':   'bundle',
   'dead-letter':   'dead_letter',
 };
 
@@ -271,7 +278,7 @@ const AGENT_TYPE_FOR_QUEUE: Record<QueueName, string> = {
 const SWEEP_QUEUE_NAME = 'hermes-sweeps';
 
 interface SweepDef {
-  name: 'hermes-planner' | 'hermes-research-sweep' | 'hermes-content-sweep';
+  name: 'hermes-planner' | 'hermes-research-sweep' | 'hermes-content-sweep' | 'hermes-bundle-sweep';
   pattern: string;
 }
 
@@ -279,6 +286,7 @@ const SWEEPS: SweepDef[] = [
   { name: 'hermes-planner',         pattern: '30 0 * * *' },
   { name: 'hermes-research-sweep',  pattern: '0  9 * * *' },
   { name: 'hermes-content-sweep',   pattern: '0 11 * * *' },
+  { name: 'hermes-bundle-sweep',    pattern: '0  7 * * *' },
 ];
 
 async function registerSweeps(): Promise<Queue> {
@@ -314,6 +322,7 @@ async function processSweep(job: Job): Promise<Record<string, any>> {
     if (sweepName === 'hermes-planner')        result = await runHermesPlanner(supabase);
     else if (sweepName === 'hermes-research-sweep') result = await runHermesResearchSweep(supabase);
     else if (sweepName === 'hermes-content-sweep')  result = await runHermesContentSweep(supabase);
+    else if (sweepName === 'hermes-bundle-sweep')   result = await runHermesBundleSweep(supabase);
     else throw new Error(`unknown sweep ${sweepName}`);
 
     if (markerId) await completeTask(markerId, 'completed', result, null);

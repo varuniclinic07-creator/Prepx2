@@ -30,10 +30,11 @@ export type PlanStatus = 'pending' | 'in_progress' | 'completed';
 export type GapType = 'silly' | 'concept' | 'time';
 
 export type QuizTask = {
-  topic_id: string;
-  type: 'read' | 'quiz' | 'review';
+  topic_id: string | null;
+  type: 'read' | 'quiz' | 'review' | 'ca_bundle';
   duration: number; // minutes
   status: PlanStatus;
+  bundle_id?: string;
 };
 
 export type TopicContent = {
