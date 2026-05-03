@@ -1,7 +1,7 @@
 import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase-server';
-import { LandingExperience } from '@/components/landing/LandingExperience';
-import type { HeroLiveData } from '@/components/landing/Hero';
+import CinematicLanding from '@/components/landing/CinematicLanding';
+import type { HeroLiveData } from '@/components/landing/types';
 
 /**
  * Public marketing landing.
@@ -76,7 +76,7 @@ export default async function MarketingHome() {
       : null,
   };
 
-  return <LandingExperience data={data} />;
+  return <CinematicLanding data={data} />;
 }
 
 function summarizeAgentTask(row: Record<string, unknown>): string {

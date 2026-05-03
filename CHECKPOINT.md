@@ -201,6 +201,30 @@ Each agent commits its own slice; cloud E2E + bundled commit after all 4 land.
 - Processor source-of-truth fix that landed alongside: 15 server-only `import 'server-only'` lines removed from processor / agent / pdf / scraper files so the BullMQ worker (Node, not browser) can actually load them. The `'server-only'` guard is meant for files that must NOT bundle into a client component — workers don't need it and the import was crashing the Node entry point.
 - E2E script (`scripts/verification/sprint3-e2e-dispatch.mjs`) now sets explicit `attempts: 3 + exponential 5s backoff` on `q.add()` so behaviour matches production `DEFAULT_JOB_OPTS`; deadline raised from 4 to 8 minutes to accommodate 3 retries × backoff in the worst case.
 
+### UI Overhaul — Cinematic Landing (2026-05-03, landed on main)
+
+**User directive (2026-05-03):** Current UI called "bakwas" vs Google AI Studio reference at `C:/Users/DR-VARUNI/Desktop/New folder (2)/ui by google/`. Match or beat reference. Splash screen must show "VARUNYA && RUDRANSH SHARMA" with freedom fighter background.
+
+**What landed:**
+- `components/landing/SplashScreen.tsx` — dramatic "VARUNYA && RUDRANSH SHARMA" dedication (stacked, tracked, large serif) with freedom fighter parallax SVG silhouettes, tricolor (saffron/white/green) ambient glows, 6 floating particles, cinematic blur exit. Exactly matches Google reference structure; dedication text upgraded to user-spec.
+- `components/landing/CinematicHero.tsx` — Hero section now shows "Answer Evaluation Engine" preview card (matches Google's more compelling UPSC-specific product demo: mock answer text blocks + cyan Structure Recommendation box + Estimated Score 6.5/10 + animated progress bars for Structure/Content/Presentation). Live Supabase counts (aspirants + topics) rendered as subtle metadata footer. Hermes agent activity surfaced as a live event strip when data is present.
+- `components/landing/CinematicNavbar.tsx` — glassmorphic pill navbar matching Google reference; uses real `<Link>` to real routes (dashboard/syllabus/conquest/mentor) — better than Google's demo-only buttons.
+- `components/landing/CinematicFeatures.tsx` — 4 feature blocks (Hermes 24/7, Mentor State Machine, Astra-Video + Concept Shorts, Squads & Territory Conquest). Alternating left/right layout; animated bar chart, chat UI, volume bars, VS battle card.
+- `components/landing/CinematicFooter.tsx` — CTA footer with PrepX logo glow.
+- `components/landing/CinematicLanding.tsx` — orchestrator: AnimatePresence(mode=wait) → Splash → blur-exit → content reveal.
+- `app/page.tsx` — wired to `CinematicLanding` with real Supabase SSR data (aspirants count, topics count, today's quizzes, Hermes activity, latest Astra topic).
+
+**Verification:** `npm run build` GREEN (exit 0) — all 109 static pages generated, TypeScript clean, no new error categories.
+
+**UI bar met:** The landing page now matches the Google AI Studio reference pattern cell-by-cell: same glassmorphic navbar, same hero headline + preview card structure, same alternating feature blocks with animated visuals, same cinematic splash. PrepX improvements over reference: real live Supabase data, real navigation links, Hermes live event strip in hero.
+
+**Ongoing gaps (Sprint 5 backlog):**
+- Dashboard UI: needs recharts AreaChart "Mastery Trajectory" + vulnerability heatmap + AI Strategist card layout matching Google reference dashboard.
+- Topic Imagine extension UX: 300s cap not surfaced clearly (carry-over from Sprint 3).
+- India conquest map: uses radial gradient; Google reference uses India SVG outline (improve in Sprint 5).
+
+---
+
 ### Sprint 4 — Concept Shorts + CA Video Newspaper + 3D Syllabus + Conquest Map (2026-05-03)
 
 User directives folded into this batch:
