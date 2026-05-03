@@ -4,7 +4,14 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import SyllabusNavigator3D from '@/components/3d/SyllabusNavigator3D';
+import dynamic from 'next/dynamic';
+
+const SyllabusNavigator3D = dynamic(() => import('@/components/3d/SyllabusNavigator3D'), {
+  ssr: false,
+  loading: () => (
+    <div className="w-full h-full flex items-center justify-center text-slate-500">Loading 3D…</div>
+  ),
+});
 
 interface SubjectProgress {
   subject: string;

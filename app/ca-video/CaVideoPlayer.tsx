@@ -4,7 +4,17 @@
 // Sprint 4-2.
 
 import { useState, useEffect } from 'react';
-import { SceneSpecRenderer } from '@/components/3d/SceneSpecRenderer';
+import dynamic from 'next/dynamic';
+
+const SceneSpecRenderer = dynamic(
+  () => import('@/components/3d/SceneSpecRenderer').then((m) => m.SceneSpecRenderer),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="w-full h-full flex items-center justify-center text-slate-500">Loading 3D…</div>
+    ),
+  },
+);
 
 interface Beat {
   startMs: number;

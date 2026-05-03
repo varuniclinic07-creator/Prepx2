@@ -4,7 +4,14 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import ConquestMap from '@/components/3d/ConquestMap';
+import dynamic from 'next/dynamic';
+
+const ConquestMap = dynamic(() => import('@/components/3d/ConquestMap'), {
+  ssr: false,
+  loading: () => (
+    <div className="w-full h-full flex items-center justify-center text-slate-500">Loading 3D…</div>
+  ),
+});
 
 interface DistrictState {
   districtId: string;

@@ -5,8 +5,18 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
+import dynamic from 'next/dynamic';
 import { createClient } from '@/lib/supabase-browser';
-import { SceneSpecRenderer } from '@/components/3d/SceneSpecRenderer';
+
+const SceneSpecRenderer = dynamic(
+  () => import('@/components/3d/SceneSpecRenderer').then((m) => m.SceneSpecRenderer),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="w-full h-full flex items-center justify-center text-slate-500">Loading 3D…</div>
+    ),
+  },
+);
 
 interface ShortItem {
   id: string;
