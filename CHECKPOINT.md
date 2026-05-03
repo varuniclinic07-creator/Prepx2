@@ -201,6 +201,39 @@ Each agent commits its own slice; cloud E2E + bundled commit after all 4 land.
 - Processor source-of-truth fix that landed alongside: 15 server-only `import 'server-only'` lines removed from processor / agent / pdf / scraper files so the BullMQ worker (Node, not browser) can actually load them. The `'server-only'` guard is meant for files that must NOT bundle into a client component — workers don't need it and the import was crashing the Node entry point.
 - E2E script (`scripts/verification/sprint3-e2e-dispatch.mjs`) now sets explicit `attempts: 3 + exponential 5s backoff` on `q.add()` so behaviour matches production `DEFAULT_JOB_OPTS`; deadline raised from 4 to 8 minutes to accommodate 3 retries × backoff in the worst case.
 
+### Sprint 4 — Concept Shorts + CA Video Newspaper + 3D Syllabus + Conquest Map (2026-05-03)
+
+User directives folded into this batch:
+- Concept Shorts duration **120s** (was 60s) — bumped end-to-end across migration default, processor LLM prompt, API route Zod default, public dropdown, admin caption.
+- ComfyUI workflow JSON for shorts delivered side-by-side at `scripts/comfyui-workflows/prepx-shorts-ltx23.json` (LTX-Video 2.3, 1280×720 @ 24fps, 2880 frames = 120s, dpmpp_2m, 20 steps, cfg 7.0, output prefix `prepx/concept-short`). Sister workflow `classroom-board.json` covers longer real-classroom lectures.
+
+| # | Feature | Status | Smoke result |
+|---|---|---|---|
+| S4-1 Concept Shorts | **landed on main 2026-05-03** | `concept-shorts-smoke.mjs` 12/12 PASS — defaults (style/render_status/approval_status/duration_seconds=120/generated_by); style + render_status + approval_status CHECK rejects (23514); RLS isolation owner vs catalog vs stranger; rate-limit log; bakeable_rows view round-trip. |
+| S4-2 CA Video Newspaper | **landed on main 2026-05-03** | `ca-video-newspaper-smoke.mjs` 11/11 PASS — bundle-id UNIQUE rejects dup (23505); render/approval CHECK 23514; viewer RLS only after approved; bundle CASCADE deletes video; bakeable_rows view round-trip. |
+| S4-3 3D Syllabus Navigator | **landed on main 2026-05-03** | `syllabus-progress-smoke.mjs` 10/10 PASS — UNIQUE (user_id, topic_id) 23505; mastery_level CHECK rejects >1 and <0; updated_at trigger; stranger RLS read+insert deny; `get_subject_progress` RPC counts mastered_topics ≥0.8 only. |
+| S4-4 Territory Conquest 3D | **landed on main 2026-05-03** | `conquest-map-smoke.mjs` 7/7 PASS — `increment_capture` RPC bumps capture_count and refreshes captured_at; non-existent (district,squad) is a no-op; `get_district_conquest_state` returns owned + unowned districts with center_lat/lng. |
+
+**Files landed:**
+- Migrations 060-063 + 063b: `concept_shorts` + `concept_short_generations` + RLS, `ca_video_newspapers` + RLS, `user_topic_progress` + `increment_capture` + `get_subject_progress` + `get_district_conquest_state`, `bake_sweep_log` + `animated_mindmaps` SceneSpec columns + `bakeable_rows` view, plus 063b SECURITY INVOKER hardening on `bakeable_rows` and anon REVOKE on the three new RPCs.
+- Backend: `lib/shorts/processors.ts`, `lib/ca-video/processors.ts`, `lib/agents/ca-video-script-writer.ts`, `lib/video/bake-bridge.ts`, `lib/video/scene-to-workflow.ts`.
+- API: `app/api/shorts/{route.ts,[id]/route.ts}`, `app/api/admin/ca-video/{route.ts,[id]/route.ts}`, `app/api/syllabus/progress/`, `app/api/conquest/route.ts`.
+- UI: `app/shorts/page.tsx`, `app/admin/shorts/page.tsx`, `app/ca-video/{[date]/page.tsx,CaVideoPlayer.tsx}`, `app/admin/ca-video/`, `app/syllabus/page.tsx`, `app/conquest/page.tsx`. New 3D components: `components/3d/{ConquestMap,ProgressRing,SyllabusNavigator3D}.tsx`.
+- Remotion sibling project: `remotion/{index.ts,compositions/}` — excluded from Next tsconfig (`tsconfig.json` `exclude: ["remotion"]`) since Remotion compiles via its own CLI.
+- Smokes: `scripts/verification/{concept-shorts,ca-video-newspaper,syllabus-progress,conquest-map}-smoke.mjs`.
+- ComfyUI workflows: `scripts/comfyui-workflows/{prepx-shorts-ltx23,classroom-board}.json`.
+
+**Verification:**
+- `npm run build` GREEN — `/shorts` (3.78 kB), `/ca-video/[date]` (2.85 kB), `/syllabus` (2.69 kB), `/conquest` (2.48 kB), all admin mirrors registered.
+- 4/4 cloud-Supabase smokes PASS (40/40 total: 12 + 11 + 10 + 7).
+- Advisor: `bakeable_rows` SECURITY DEFINER **ERROR cleared** by 063b. Three new SECURITY DEFINER RPCs (`increment_capture`, `get_subject_progress`, `get_district_conquest_state`) intentionally callable by `authenticated` (same shape as Sprint 2's `inject_weak_areas_for_plan`); `anon` EXECUTE revoked. Cached anon-warn entries on those 3 RPCs will drop on next advisor refresh.
+- Build-time fix folded in: `lib/shorts/processors.ts` was treating `aiChat` as `{content:string}` — corrected to use the returned string directly.
+
+**Honest gaps (Sprint 4-part-2 backlog, not blocking commit):**
+- Concept Shorts and CA Video Newspaper rows ship as `render_status='r3f_only'`. The R3F → MP4 baking sweep uses `bake_sweep_log` + `lib/video/bake-bridge.ts` + `lib/video/scene-to-workflow.ts`, but actual ComfyUI execution is gated on the operator pointing `comfyui_settings.base_url` at a running instance. The shipped workflow JSON (`prepx-shorts-ltx23.json`) is verified as UI-importable.
+- Topic Imagine extension UX still doesn't surface the 300s cap clearly (carry-over gap from Sprint 3).
+- 3D Syllabus + Conquest pages render real R3F components but cell-by-cell parity vs the Google AI Studio reference UI not yet measured.
+
 ### Background-deferred (do NOT lose track)
 - Batch 1 prod-deploy: push Sprint 1 + onboarding-fix to origin/main, set `NEXT_PUBLIC_BASE_URL=https://upsc.aimasteryedu.in` on Coolify, configure Google OAuth on Supabase Dashboard, re-run prod B5 → green.
 - Step 6 monitoring: Sentry/PostHog frontend + Coolify log shipping + UptimeRobot.

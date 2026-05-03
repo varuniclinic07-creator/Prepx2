@@ -1,0 +1,57 @@
+{
+  "description": "PrepX Classroom Board — LTX 2.3 workflow for board+teacher lecture rendering",
+  "version": "1.0.0",
+  "nodes": {
+    "1": {
+      "inputs": { "text": "", "clip": ["6", 0] },
+      "class_type": "CLIPTextEncode",
+      "_meta": { "title": "Positive Prompt" }
+    },
+    "2": {
+      "inputs": { "text": "blurry, low quality, watermark, text errors, distorted faces, jittery motion, flickering", "clip": ["6", 0] },
+      "class_type": "CLIPTextEncode",
+      "_meta": { "title": "Negative Prompt" }
+    },
+    "3": {
+      "inputs": {
+        "width": 1280,
+        "height": 720,
+        "length": 720,
+        "frame_rate": 24,
+        "seed": 0,
+        "positive": ["1", 0],
+        "negative": ["2", 0],
+        "steps": 20,
+        "cfg": 7.0,
+        "scheduler": "dpmpp_2m",
+        "denoise": 1.0
+      },
+      "class_type": "LTXVideoSampler",
+      "_meta": { "title": "LTX Video Sampler" }
+    },
+    "4": {
+      "inputs": { "samples": ["3", 0], "vae": ["5", 0] },
+      "class_type": "VAEDecode",
+      "_meta": { "title": "VAE Decode" }
+    },
+    "5": {
+      "inputs": { "vae_name": "ltx_video_vae.safetensors" },
+      "class_type": "VAELoader",
+      "_meta": { "title": "Load VAE" }
+    },
+    "6": {
+      "inputs": { "clip_name": "t5xxl_fp16.safetensors", "type": "ltx_video" },
+      "class_type": "CLIPLoader",
+      "_meta": { "title": "Load CLIP" }
+    },
+    "7": {
+      "inputs": {
+        "filename_prefix": "prepx/classroom",
+        "fps": 24,
+        "images": ["4", 0]
+      },
+      "class_type": "SaveAnimatedWEBP",
+      "_meta": { "title": "Save Output" }
+    }
+  }
+}

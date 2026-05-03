@@ -1,6 +1,7 @@
 import type { Job } from 'bullmq';
 import { getAdminClient } from '../supabase-admin';
 import { generateDailyBundle, type ArticleSummary } from '../agents/bundle-grouper';
+import { spawnAgent } from '../agents/hermes-dispatch';
 
 // BullMQ processor for bundle-jobs (Sprint 2 / Epic 5.3).
 //
@@ -155,6 +156,18 @@ export async function processBundleJob(
     .eq('id', bundleId);
   if (publishErr) {
     throw new Error(`processBundleJob: publish flip failed: ${publishErr.message}`);
+  }
+
+  // Chain a ca-video job so the video newspaper is auto-generated
+  // after each published bundle. Non-fatal — bundle is still published if this fails.
+  try {
+    await spawnAgent(sb, {
+      agentType: 'ca_video',
+      payload: { bundleId, bundleDate },
+      priority: 5,
+    });
+  } catch {
+    // Swallow — ca-video generation is a downstream bonus.
   }
 
   return {

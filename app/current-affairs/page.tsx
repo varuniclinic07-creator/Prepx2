@@ -5,7 +5,7 @@
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { headers } from 'next/headers';
-import { ArrowRight, Newspaper } from 'lucide-react';
+import { ArrowRight, Newspaper, Video } from 'lucide-react';
 import { createClient } from '@/lib/supabase-server';
 import { getUser } from '@/lib/auth';
 import { Topbar } from '@/components/nav/Topbar';
@@ -157,9 +157,18 @@ export default async function CurrentAffairsPage() {
                     {bundle.subtitle ? ` · ${bundle.subtitle}` : ''}
                   </CardSub>
                 </div>
-                <Pill tone="cyan">
-                  {readCount}/{totalArticles} read
-                </Pill>
+                <div className="flex items-center gap-3">
+                  <Link
+                    href={`/ca-video/${bundle.bundle_date}`}
+                    className="flex items-center gap-1.5 text-xs bg-slate-800 hover:bg-slate-700 text-cyan-400 px-3 py-1.5 rounded-lg transition"
+                  >
+                    <Video size={14} />
+                    Watch Video
+                  </Link>
+                  <Pill tone="cyan">
+                    {readCount}/{totalArticles} read
+                  </Pill>
+                </div>
               </CardHeader>
 
               <p className="mt-3 text-sm leading-relaxed text-white/80">{bundle.summary}</p>

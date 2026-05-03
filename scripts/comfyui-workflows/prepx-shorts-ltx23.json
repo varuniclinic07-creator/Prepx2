@@ -1,0 +1,185 @@
+{
+  "_comment_readme": [
+    "PrepX Concept Shorts — LTX-Video 2.3 ComfyUI workflow (UI-importable).",
+    "",
+    "How to install (side-by-side with the PrepX app):",
+    "  1. Install ComfyUI:  https://github.com/comfyanonymous/ComfyUI",
+    "  2. Install ComfyUI-LTXVideo extension via ComfyUI-Manager (search 'LTX').",
+    "  3. Download LTX 2.3 checkpoint into ComfyUI/models/checkpoints/:",
+    "       ltx-video-2b-v0.9.5.safetensors  (or the 13B variant if you have 24GB VRAM)",
+    "     and place these into ComfyUI/models/:",
+    "       text_encoders/t5xxl_fp16.safetensors",
+    "       vae/ltx_video_vae.safetensors",
+    "  4. Start ComfyUI (./main.py or run_nvidia_gpu.bat).",
+    "  5. In the browser UI, click 'Load' and select THIS file.",
+    "  6. Edit the green 'Positive Prompt' node — replace its text with your scene description.",
+    "  7. Click 'Queue Prompt' — output appears in ComfyUI/output/prepx/ as .webp video.",
+    "",
+    "What this matches in the app:",
+    "  - durationSeconds: 120  (length=2880 frames @ 24fps)",
+    "  - resolution: 1280x720  (matches lib/video/scene-to-workflow.ts)",
+    "  - sampler: dpmpp_2m, 20 steps, cfg 7.0",
+    "  - filename_prefix: prepx/concept-short  (so the app can find the output)",
+    "",
+    "VRAM guidance:",
+    "  - 12GB GPU: lower 'length' to 720 (30 sec) or 'width/height' to 768x432.",
+    "  - 24GB GPU: keep defaults; consider 'steps' = 30 for higher quality.",
+    "  - To enable the PrepX app to drive THIS install, set in admin UI -> ComfyUI Settings:",
+    "      base_url: http://localhost:8188   (or wherever ComfyUI listens)",
+    "      enabled: true"
+  ],
+  "last_node_id": 7,
+  "last_link_id": 8,
+  "nodes": [
+    {
+      "id": 6,
+      "type": "CLIPLoader",
+      "pos": [60, 100],
+      "size": [320, 100],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        { "name": "CLIP", "type": "CLIP", "links": [1, 2], "slot_index": 0 }
+      ],
+      "properties": { "Node name for S&R": "CLIPLoader" },
+      "widgets_values": ["t5xxl_fp16.safetensors", "ltx_video"]
+    },
+    {
+      "id": 5,
+      "type": "VAELoader",
+      "pos": [60, 250],
+      "size": [320, 60],
+      "flags": {},
+      "order": 1,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        { "name": "VAE", "type": "VAE", "links": [3], "slot_index": 0 }
+      ],
+      "properties": { "Node name for S&R": "VAELoader" },
+      "widgets_values": ["ltx_video_vae.safetensors"]
+    },
+    {
+      "id": 1,
+      "type": "CLIPTextEncode",
+      "pos": [430, 80],
+      "size": [400, 200],
+      "flags": {},
+      "order": 2,
+      "mode": 0,
+      "inputs": [{ "name": "clip", "type": "CLIP", "link": 1 }],
+      "outputs": [
+        { "name": "CONDITIONING", "type": "CONDITIONING", "links": [4], "slot_index": 0 }
+      ],
+      "title": "Positive Prompt — REPLACE THIS",
+      "color": "#232",
+      "bgcolor": "#353",
+      "properties": { "Node name for S&R": "CLIPTextEncode" },
+      "widgets_values": [
+        "Cinematic 3D classroom scene: a glowing cyan sphere labelled 'Fundamental Rights' rotates slowly at the centre of an indigo board. A saffron torus orbits it, with floating Devanagari + English captions. Soft volumetric lighting, dolly-in camera move from wide to medium close-up over 120 seconds, modern animated infographic style, ultra-clean typography, no jitter, no flicker, smooth continuous motion."
+      ]
+    },
+    {
+      "id": 2,
+      "type": "CLIPTextEncode",
+      "pos": [430, 320],
+      "size": [400, 140],
+      "flags": {},
+      "order": 3,
+      "mode": 0,
+      "inputs": [{ "name": "clip", "type": "CLIP", "link": 2 }],
+      "outputs": [
+        { "name": "CONDITIONING", "type": "CONDITIONING", "links": [5], "slot_index": 0 }
+      ],
+      "title": "Negative Prompt",
+      "color": "#322",
+      "bgcolor": "#533",
+      "properties": { "Node name for S&R": "CLIPTextEncode" },
+      "widgets_values": [
+        "blurry, low quality, watermark, text errors, distorted faces, jittery motion, flickering, washed out, low resolution, deformed, glitch, censored, oversharpened"
+      ]
+    },
+    {
+      "id": 3,
+      "type": "LTXVideoSampler",
+      "pos": [880, 100],
+      "size": [380, 320],
+      "flags": {},
+      "order": 4,
+      "mode": 0,
+      "inputs": [
+        { "name": "positive", "type": "CONDITIONING", "link": 4 },
+        { "name": "negative", "type": "CONDITIONING", "link": 5 }
+      ],
+      "outputs": [
+        { "name": "LATENT", "type": "LATENT", "links": [6], "slot_index": 0 }
+      ],
+      "properties": { "Node name for S&R": "LTXVideoSampler" },
+      "widgets_values": [
+        1280,
+        720,
+        2880,
+        24,
+        0,
+        20,
+        7.0,
+        "dpmpp_2m",
+        1.0
+      ]
+    },
+    {
+      "id": 4,
+      "type": "VAEDecode",
+      "pos": [1300, 120],
+      "size": [200, 80],
+      "flags": {},
+      "order": 5,
+      "mode": 0,
+      "inputs": [
+        { "name": "samples", "type": "LATENT", "link": 6 },
+        { "name": "vae", "type": "VAE", "link": 3 }
+      ],
+      "outputs": [
+        { "name": "IMAGE", "type": "IMAGE", "links": [7], "slot_index": 0 }
+      ],
+      "properties": { "Node name for S&R": "VAEDecode" }
+    },
+    {
+      "id": 7,
+      "type": "SaveAnimatedWEBP",
+      "pos": [1540, 120],
+      "size": [320, 180],
+      "flags": {},
+      "order": 6,
+      "mode": 0,
+      "inputs": [{ "name": "images", "type": "IMAGE", "link": 7 }],
+      "outputs": [],
+      "properties": { "Node name for S&R": "SaveAnimatedWEBP" },
+      "widgets_values": ["prepx/concept-short", 24, false, 80, "default"]
+    }
+  ],
+  "links": [
+    [1, 6, 0, 1, 0, "CLIP"],
+    [2, 6, 0, 2, 0, "CLIP"],
+    [3, 5, 0, 4, 1, "VAE"],
+    [4, 1, 0, 3, 0, "CONDITIONING"],
+    [5, 2, 0, 3, 1, "CONDITIONING"],
+    [6, 3, 0, 4, 0, "LATENT"],
+    [7, 4, 0, 7, 0, "IMAGE"]
+  ],
+  "groups": [
+    {
+      "title": "PrepX Concept Short (LTX 2.3) — 120s @ 24fps @ 1280x720",
+      "bounding": [40, 30, 1840, 470],
+      "color": "#3f789e",
+      "font_size": 24
+    }
+  ],
+  "config": {},
+  "extra": {
+    "ds": { "scale": 0.7, "offset": [0, 0] }
+  },
+  "version": 0.4
+}

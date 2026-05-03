@@ -41,6 +41,9 @@ import { processMnemonicJob } from '../lib/mnemonic/processors';
 import { processImagineJob } from '../lib/imagine/processors';
 import { processMindmapJob } from '../lib/mindmap/processors';
 import { processInterviewJob } from '../lib/interview/processors';
+import { processShortsJob } from '../lib/shorts/processors';
+import { processCaVideoJob } from '../lib/ca-video/processors';
+import { runBakeSweep } from '../lib/video/bake-bridge';
 
 const log = pino({
   name: 'hermes-worker',
@@ -263,8 +266,8 @@ const PROCESSORS: Record<QueueName, (job: Job, taskId: string) => Promise<Record
   'mnemonic-jobs':  processMnemonicJob,
   'imagine-jobs':   processImagineJob,
   'mindmap-jobs':   processMindmapJob,
-  'shorts-jobs':    async (_job, taskId) => ({ taskId, note: 'shorts processor — Sprint 4' }),
-  'ca-video-jobs':  async (_job, taskId) => ({ taskId, note: 'ca-video processor — Sprint 4' }),
+  'shorts-jobs':    processShortsJob,
+  'ca-video-jobs':  processCaVideoJob,
   'interview-jobs': processInterviewJob,
   'dead-letter':    async (_job, taskId) => ({ taskId, note: 'observed by dead-letter consumer' }),
 };
@@ -294,7 +297,7 @@ const AGENT_TYPE_FOR_QUEUE: Record<QueueName, string> = {
 const SWEEP_QUEUE_NAME = 'hermes-sweeps';
 
 interface SweepDef {
-  name: 'hermes-planner' | 'hermes-research-sweep' | 'hermes-content-sweep' | 'hermes-bundle-sweep';
+  name: 'hermes-planner' | 'hermes-research-sweep' | 'hermes-content-sweep' | 'hermes-bundle-sweep' | 'hermes-bake-sweep';
   pattern: string;
 }
 
@@ -303,6 +306,7 @@ const SWEEPS: SweepDef[] = [
   { name: 'hermes-research-sweep',  pattern: '0  9 * * *' },
   { name: 'hermes-content-sweep',   pattern: '0 11 * * *' },
   { name: 'hermes-bundle-sweep',    pattern: '0  7 * * *' },
+  { name: 'hermes-bake-sweep',     pattern: '0  1 * * *' },
 ];
 
 async function registerSweeps(): Promise<Queue> {
@@ -339,6 +343,7 @@ async function processSweep(job: Job): Promise<Record<string, any>> {
     else if (sweepName === 'hermes-research-sweep') result = await runHermesResearchSweep(supabase);
     else if (sweepName === 'hermes-content-sweep')  result = await runHermesContentSweep(supabase);
     else if (sweepName === 'hermes-bundle-sweep')   result = await runHermesBundleSweep(supabase);
+    else if (sweepName === 'hermes-bake-sweep')    result = await runBakeSweep();
     else throw new Error(`unknown sweep ${sweepName}`);
 
     if (markerId) await completeTask(markerId, 'completed', result, null);
