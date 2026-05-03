@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase-server';
+import { getAdminClient } from '@/lib/supabase-admin';
 import { textToSpeech } from '@/lib/ai-router';
+import { uploadPodcastAudio, mintPodcastSignedUrl } from '@/lib/podcast/storage';
 
 export async function POST() {
   const supabase = await createClient();
@@ -14,15 +16,17 @@ export async function POST() {
     .select('*')
     .eq('user_id', user.id)
     .eq('date', today)
-    .single();
+    .maybeSingle();
 
-  if (existing?.status === 'completed') return NextResponse.json({ episode: existing });
+  if (existing?.status === 'completed' && existing.audio_url) {
+    return NextResponse.json({ episode: existing });
+  }
 
   const { data: globalEp } = await supabase
     .from('daily_dhwani')
     .select('script_text, gs_paper')
     .eq('date', today)
-    .single();
+    .maybeSingle();
 
   if (!globalEp?.script_text) {
     return NextResponse.json({ error: 'No episode generated for today yet' }, { status: 404 });
@@ -46,22 +50,33 @@ export async function POST() {
 
   try {
     const audioBuffer = await textToSpeech(globalEp.script_text.slice(0, 4000));
-    const base64 = audioBuffer.toString('base64');
-    const audioUrl = `data:audio/mp3;base64,${base64}`;
+    const storagePath = `${user.id}/${today}.mp3`;
+    await uploadPodcastAudio(storagePath, audioBuffer);
+    const { url, expiresAt } = await mintPodcastSignedUrl(storagePath);
 
-    const { data: updated } = await supabase
+    const admin = getAdminClient();
+    const { data: updated } = await admin
       .from('podcast_episodes')
-      .update({ audio_url: audioUrl, status: 'completed' })
+      .update({
+        audio_path: storagePath,
+        audio_url: url,
+        signed_url_expires_at: expiresAt,
+        status: 'completed',
+      })
       .eq('id', episode.id)
       .select()
       .single();
 
     return NextResponse.json({ episode: updated });
-  } catch {
-    await supabase
+  } catch (e) {
+    const admin = getAdminClient();
+    await admin
       .from('podcast_episodes')
       .update({ status: 'failed' })
       .eq('id', episode.id);
-    return NextResponse.json({ error: 'TTS generation failed' }, { status: 500 });
+    return NextResponse.json({
+      error: 'TTS generation failed',
+      detail: e instanceof Error ? e.message : 'unknown',
+    }, { status: 500 });
   }
 }

@@ -344,7 +344,7 @@ function DashboardTeaser({
 function PrimaryNavGrid() {
   const links = [
     { href: '/astra', label: 'Astra', icon: BookOpen, tint: 'cyan' as const },
-    { href: '/dhwani', label: 'Dhwani', icon: BookOpen, tint: 'primary' as const },
+    { href: '/podcast', label: 'Podcast', icon: BookOpen, tint: 'primary' as const },
     { href: '/mnemonics', label: 'Mnemonics', icon: BookOpen, tint: 'secondary' as const },
     { href: '/voice', label: 'Voice', icon: BookOpen, tint: 'cyan' as const },
     { href: '/interview', label: 'Interview', icon: BookOpen, tint: 'primary' as const },
