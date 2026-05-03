@@ -13,6 +13,9 @@ import { Button } from '@/components/ui/Button';
 import { DashboardGreeting } from '@/components/dashboard/DashboardGreeting';
 import { HermesFeed, type HermesTaskRow } from '@/components/dashboard/HermesFeed';
 import { RecentAttempts, type RecentAttempt } from '@/components/dashboard/RecentAttempts';
+import MasteryTrajectory from '@/components/dashboard/MasteryTrajectory';
+import VulnerabilityHeatmap, { type WeakArea } from '@/components/dashboard/VulnerabilityHeatmap';
+import AIStrategist from '@/components/dashboard/AIStrategist';
 import { headers } from 'next/headers';
 
 export default async function DashboardPage() {
@@ -24,7 +27,10 @@ export default async function DashboardPage() {
   // Weak-area data is intentionally NOT surfaced on the dashboard — Hermes
   // injects review tasks into the daily plan invisibly so the user sees
   // forward progress, not a "you are weak in X" diagnostic.
-  const [profileRes, balanceRes, hermesRes, attemptsRes, astraRes] = await Promise.allSettled([
+  const sevenDaysAgo = new Date();
+  sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+
+  const [profileRes, balanceRes, hermesRes, attemptsRes, astraRes, weakAreasRes, weeklyRes] = await Promise.allSettled([
     supabase
       .from('users')
       .select('baseline_score, streak_count, role, full_name, preferred_language')
@@ -39,7 +45,7 @@ export default async function DashboardPage() {
       .limit(10),
     supabase
       .from('quiz_attempts')
-      .select('id, score, total_questions, created_at, quiz_id, quizzes(topic_id, topics(title))')
+      .select('id, score, max_score, created_at, quiz_id, quizzes(topic_id, topics(title))')
       .eq('user_id', user.id)
       .order('created_at', { ascending: false })
       .limit(5),
@@ -48,6 +54,18 @@ export default async function DashboardPage() {
       .select('id, title, subject')
       .order('updated_at', { ascending: false })
       .limit(1),
+    supabase
+      .from('user_weak_areas')
+      .select('id, topic_id, gap_type, severity, topics(title)')
+      .eq('user_id', user.id)
+      .order('severity', { ascending: false })
+      .limit(5),
+    supabase
+      .from('quiz_attempts')
+      .select('score, max_score, completed_at')
+      .eq('user_id', user.id)
+      .gte('completed_at', sevenDaysAgo.toISOString())
+      .order('completed_at', { ascending: true }),
   ]);
 
   const profile = profileRes.status === 'fulfilled' ? profileRes.value.data : null;
@@ -111,7 +129,7 @@ export default async function DashboardPage() {
             id: String(row.id),
             topic_title: topicField?.title ?? 'Quiz attempt',
             score: Number(row.score ?? 0),
-            total: Number(row.total_questions ?? 0),
+            total: Number(row.max_score ?? 0),
             created_at: String(row.created_at),
           };
         })
@@ -136,6 +154,46 @@ export default async function DashboardPage() {
 
   const astra = astraRes.status === 'fulfilled' ? astraRes.value.data?.[0] : null;
 
+  // Weak areas.
+  const weakAreas: WeakArea[] =
+    weakAreasRes.status === 'fulfilled'
+      ? (weakAreasRes.value.data ?? []).map((row: Record<string, unknown>) => {
+          const topicsField = row.topics as { title?: string } | { title?: string }[] | null;
+          const topicEntry = Array.isArray(topicsField) ? topicsField[0] : topicsField;
+          return {
+            topic_id: String(row.topic_id ?? row.id),
+            topic_title: topicEntry?.title ?? String(row.topic_id ?? ''),
+            gap_type: String(row.gap_type ?? 'concept'),
+            severity: Number(row.severity ?? 1),
+          };
+        })
+      : [];
+
+  // 7-day weekly trajectory.
+  const DAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+  const weeklyRaw =
+    weeklyRes.status === 'fulfilled' ? (weeklyRes.value.data ?? []) : [];
+  const dayMap = new Map<string, { totalPct: number; count: number }>();
+  for (const row of weeklyRaw as { score: number; max_score: number; completed_at: string }[]) {
+    const d = new Date(row.completed_at);
+    const key = DAY_LABELS[d.getDay()];
+    const pct = row.max_score > 0 ? Math.round((row.score / row.max_score) * 100) : 0;
+    const existing = dayMap.get(key);
+    if (existing) {
+      existing.totalPct += pct;
+      existing.count += 1;
+    } else {
+      dayMap.set(key, { totalPct: pct, count: 1 });
+    }
+  }
+  const weeklyData = Array.from({ length: 7 }, (_, i) => {
+    const d = new Date();
+    d.setDate(d.getDate() - (6 - i));
+    const key = DAY_LABELS[d.getDay()];
+    const entry = dayMap.get(key);
+    return { day: key, score: entry ? Math.round(entry.totalPct / entry.count) : 0 };
+  });
+
   return (
     <div className="min-h-screen bg-[var(--color-surface-0)] text-white">
       <Topbar coinBalance={coinBalance} tenantName={tenantName} logoUrl={tenantLogo} />
@@ -147,6 +205,8 @@ export default async function DashboardPage() {
           planComplete={planComplete}
           planTotal={planTotal}
         />
+
+        <MasteryTrajectory data={weeklyData} />
 
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
           {/* Left column — Daily plan + Astra preview */}
@@ -203,8 +263,10 @@ export default async function DashboardPage() {
             </Card>
           </div>
 
-          {/* Right column — Hermes + radar + teasers */}
+          {/* Right column — AI Strategist + Hermes + Weak areas + teasers */}
           <div className="space-y-6">
+            <AIStrategist />
+
             <GlassCard glow="primary" padding="md">
               <CardHeader>
                 <div>
@@ -215,6 +277,8 @@ export default async function DashboardPage() {
               </CardHeader>
               <HermesFeed tasks={hermesTasks} />
             </GlassCard>
+
+            <VulnerabilityHeatmap weakAreas={weakAreas} />
 
             <div className="grid grid-cols-2 gap-4">
               <DashboardTeaser

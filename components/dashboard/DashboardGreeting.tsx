@@ -1,7 +1,7 @@
 'use client';
 
 import { motion } from 'motion/react';
-import { Flame } from 'lucide-react';
+import { Zap } from 'lucide-react';
 import { useT } from '@/lib/i18n-client';
 
 function greetingKey(hour: number): string {
@@ -51,7 +51,7 @@ export function DashboardGreeting({
 
         <div className="flex flex-wrap items-center gap-3">
           <div className="flex items-center gap-2 rounded-full border border-[var(--color-accent-saffron)]/30 bg-[var(--color-accent-saffron)]/10 px-4 py-2 text-sm font-semibold text-[var(--color-accent-saffron)]">
-            <Flame size={16} />
+            <Zap size={16} />
             <span>{streak} {t('dashboard.streak')}</span>
           </div>
         </div>
