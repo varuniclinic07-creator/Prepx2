@@ -3,6 +3,8 @@ import { TopicViewer } from '@/components/TopicViewer';
 import { createClient } from '@/lib/supabase-server';
 import { MnemonicCards, type MnemonicCard } from '@/components/mnemonic/MnemonicCards';
 import { MindmapSection } from '@/components/3d/MindmapSection';
+import { NotesSection } from '@/components/notes/NotesSection';
+import type { Note3DRow, NoteColor } from '@/components/3d/Notes3D';
 import Link from 'next/link';
 
 export default async function TopicPage({ params }: { params: Promise<{ id: string }> }) {
@@ -57,6 +59,26 @@ export default async function TopicPage({ params }: { params: Promise<{ id: stri
     isMindmapAdmin = prof?.role === 'admin';
   }
 
+  // Sprint 6 / S6-2: pull this user's 3D notes for this topic. RLS owner-only.
+  let initialNotes: Note3DRow[] = [];
+  if (mindmapAuthUser) {
+    const { data: notesRows } = await sb
+      .from('user_topic_notes')
+      .select('id, content, position_x, position_y, position_z, color, created_at, updated_at')
+      .eq('topic_id', id)
+      .order('created_at', { ascending: true });
+    initialNotes = (notesRows || []).map((n: any) => ({
+      id: n.id,
+      content: n.content || '',
+      position_x: Number(n.position_x) || 0,
+      position_y: Number(n.position_y) || 0,
+      position_z: Number(n.position_z) || 0,
+      color: (n.color || 'primary') as NoteColor,
+      created_at: n.created_at,
+      updated_at: n.updated_at,
+    }));
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -84,6 +106,9 @@ export default async function TopicPage({ params }: { params: Promise<{ id: stri
         initialNodes={mindmapNodes as any}
       />
 
+      {mindmapAuthUser && (
+        <NotesSection topicId={id} topicTitle={topic.title} initialNotes={initialNotes} />
+      )}
 
       {chapters && chapters.length > 0 && (
         <section className="space-y-6">

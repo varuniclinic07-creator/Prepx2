@@ -44,6 +44,7 @@ import { processInterviewJob } from '../lib/interview/processors';
 import { processShortsJob } from '../lib/shorts/processors';
 import { processCaVideoJob } from '../lib/ca-video/processors';
 import { runBakeSweep } from '../lib/video/bake-bridge';
+import { runRenderRetrySweep } from '../lib/video/render-retry-sweep';
 
 const log = pino({
   name: 'hermes-worker',
@@ -297,16 +298,17 @@ const AGENT_TYPE_FOR_QUEUE: Record<QueueName, string> = {
 const SWEEP_QUEUE_NAME = 'hermes-sweeps';
 
 interface SweepDef {
-  name: 'hermes-planner' | 'hermes-research-sweep' | 'hermes-content-sweep' | 'hermes-bundle-sweep' | 'hermes-bake-sweep';
+  name: 'hermes-planner' | 'hermes-research-sweep' | 'hermes-content-sweep' | 'hermes-bundle-sweep' | 'hermes-bake-sweep' | 'hermes-render-retry-sweep';
   pattern: string;
 }
 
 const SWEEPS: SweepDef[] = [
-  { name: 'hermes-planner',         pattern: '30 0 * * *' },
-  { name: 'hermes-research-sweep',  pattern: '0  9 * * *' },
-  { name: 'hermes-content-sweep',   pattern: '0 11 * * *' },
-  { name: 'hermes-bundle-sweep',    pattern: '0  7 * * *' },
-  { name: 'hermes-bake-sweep',     pattern: '0  1 * * *' },
+  { name: 'hermes-planner',             pattern: '30 0 * * *' },
+  { name: 'hermes-research-sweep',      pattern: '0  9 * * *' },
+  { name: 'hermes-content-sweep',       pattern: '0 11 * * *' },
+  { name: 'hermes-bundle-sweep',        pattern: '0  7 * * *' },
+  { name: 'hermes-bake-sweep',         pattern: '0  1 * * *' },
+  { name: 'hermes-render-retry-sweep',  pattern: '0  2 * * *' },
 ];
 
 async function registerSweeps(): Promise<Queue> {
@@ -344,6 +346,7 @@ async function processSweep(job: Job): Promise<Record<string, any>> {
     else if (sweepName === 'hermes-content-sweep')  result = await runHermesContentSweep(supabase);
     else if (sweepName === 'hermes-bundle-sweep')   result = await runHermesBundleSweep(supabase);
     else if (sweepName === 'hermes-bake-sweep')    result = await runBakeSweep();
+    else if (sweepName === 'hermes-render-retry-sweep') result = await runRenderRetrySweep(supabase);
     else throw new Error(`unknown sweep ${sweepName}`);
 
     if (markerId) await completeTask(markerId, 'completed', result, null);

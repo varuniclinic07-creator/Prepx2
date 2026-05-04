@@ -244,7 +244,7 @@ export async function embedText(texts: string[]): Promise<number[][]> {
 // ── TTS ──
 export async function textToSpeech(text: string): Promise<Buffer> {
   const baseURL = env('NINEROUTER_BASE_URL');
-  const apiKey = env('NINEROUTER_TTS_KEY');
+  const apiKey = env('NINEROUTER_TTS_KEY') || env('NINEROUTER_API_KEY');
   const model = env('NINEROUTER_TTS_MODEL', 'google-tts/en');
   const res = await fetch(`${baseURL}/audio/speech`, {
     method: 'POST',

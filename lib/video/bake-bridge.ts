@@ -97,17 +97,44 @@ interface BakeResult {
 async function bakeOneRow(
   def: BakableTable,
   row: Record<string, any>,
+  sweepLogId: string | null,
 ): Promise<BakeResult> {
   const sb = getAdminClient();
+  const startMs = Date.now();
   const rowId = row[def.idCol] || row.id;
   const sceneRaw = row[def.sceneCol];
 
+  // Audit-row writer — fires once per result so /admin/bake-sweep has a
+  // stable per-row history even when the parent log entry is rotated.
+  const audit = async (
+    status: 'rendered' | 'failed' | 'skipped',
+    extras: { error_message?: string; prompt_id?: string; storage_path?: string; video_url?: string } = {},
+  ) => {
+    try {
+      await sb.from('bake_sweep_jobs').insert({
+        sweep_id: sweepLogId,
+        source_table: def.table,
+        row_id: rowId,
+        status,
+        error_message: extras.error_message ?? null,
+        prompt_id: extras.prompt_id ?? null,
+        storage_path: extras.storage_path ?? null,
+        video_url: extras.video_url ?? null,
+        duration_ms: Date.now() - startMs,
+      });
+    } catch {
+      // Audit must never break the sweep itself.
+    }
+  };
+
   if (!sceneRaw) {
+    await audit('skipped', { error_message: 'no scene data' });
     return { table: def.table, rowId, status: 'skipped', error: 'no scene data' };
   }
 
   const scene = sceneRaw.version === 1 ? sceneRaw : (Array.isArray(sceneRaw) ? sceneRaw[0] : null);
   if (!scene || scene.version !== 1) {
+    await audit('skipped', { error_message: 'invalid SceneSpec' });
     return { table: def.table, rowId, status: 'skipped', error: 'invalid SceneSpec' };
   }
 
@@ -132,6 +159,7 @@ async function bakeOneRow(
     await sb.from(def.table)
       .update({ [def.statusCol]: 'r3f_only' })
       .eq(def.idCol, rowId);
+    await audit('skipped', { error_message: 'ComfyUI not enabled' });
     return { table: def.table, rowId, status: 'skipped', error: 'ComfyUI not enabled' };
   }
 
@@ -187,12 +215,14 @@ async function bakeOneRow(
     }
     await sb.from(def.table).update(updatePayload).eq(def.idCol, rowId);
 
+    await audit('rendered', { prompt_id, storage_path: storagePath, video_url: signedUrl });
     return { table: def.table, rowId, status: 'rendered', promptId: prompt_id, videoUrl: signedUrl };
   } catch (err: any) {
     const msg = err?.message || String(err);
     await sb.from(def.table)
       .update({ [def.statusCol]: 'failed', render_meta: { bake_error: msg } })
       .eq(def.idCol, rowId);
+    await audit('failed', { error_message: msg });
     return { table: def.table, rowId, status: 'failed', error: msg };
   }
 }
@@ -233,7 +263,7 @@ export async function runBakeSweep(): Promise<BakeSweepResult> {
 
     for (const row of rows) {
       summary.total++;
-      const result = await bakeOneRow(def, row);
+      const result = await bakeOneRow(def, row, logId);
       baked.push(result);
       summary[result.status] = (summary[result.status] || 0) + 1;
     }
