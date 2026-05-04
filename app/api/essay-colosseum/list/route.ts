@@ -11,7 +11,7 @@ export async function POST(request: NextRequest) {
     const { data: matches, error } = await supabase
       .from('essay_colosseum_matches')
       .select('*')
-      .or(`initiator_id.eq.${user.id},opponent_id.eq.${user.id}`)
+      .or(`initiator_id.eq.${user.id},opponent_id.eq.${user.id},invited_user_id.eq.${user.id}`)
       .order('created_at', { ascending: false })
       .limit(50);
 

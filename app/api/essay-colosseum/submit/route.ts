@@ -29,14 +29,16 @@ export async function POST(request: NextRequest) {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-    // FIX 2.5: IDOR check
+    // FIX 2.5: IDOR — only initiator or accepted opponent of an active match may submit.
     const { data: match, error: matchErr } = await supabase
       .from('essay_colosseum_matches')
-      .select('invited_user_id')
+      .select('initiator_id, opponent_id, status')
       .eq('id', match_id)
       .single();
 
-    if (matchErr || !match || match.invited_user_id !== user.id) {
+    if (matchErr || !match) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    const isParticipant = match.initiator_id === user.id || match.opponent_id === user.id;
+    if (!isParticipant || match.status === 'closed') {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 

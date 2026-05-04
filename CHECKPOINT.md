@@ -599,6 +599,22 @@ BACKEND_SECURITY_AUDIT.md called out 6 routes as missing auth/sig verify. Re-ins
 
 ---
 
+## Sprint 7-B — Essay Colosseum peer-judging + IDOR fix (2026-05-04, landed on main)
+
+User greenlit full Sprint 7 (B → A → C → D) on session resume. Cluster B finished first.
+
+| Layer | Change |
+|---|---|
+| Schema | `supabase/migrations/074_essay_colosseum_peer_judging.sql` applied to cloud `vbddpwxbijwuarmrexme`. Adds `essay_colosseum_matches.invited_user_id`, expands status CHECK to include `'pending'`/`'accepted'`, creates `essay_peer_judgments` (UNIQUE submission_id+judge_id, score 1-10), creates `essay_colosseum_leaderboard` view (wins/matches_played/avg_peer_score/judgments_received). Replaces RLS SELECT on matches so invited users can see incoming pending invites + everyone can read closed matches; replaces UPDATE policy so invited user can flip pending→accepted; expands submissions SELECT so closed-match submissions are publicly readable. |
+| API | `app/api/essay-colosseum/create/route.ts` rewrites payload: opponent_email → `invited_user_id`, status `pending` if invited else `open`; rejects unknown email + self-invite. `app/api/essay-colosseum/accept/route.ts` IDOR-tightened: only invited user (or any auth user for `open` matches) accepts; rejects self-accept; optimistic-lock via `.eq('status', match.status)` to block double-accept races. `app/api/essay-colosseum/submit/route.ts` IDOR-tightened: only initiator OR accepted opponent of a non-closed match may submit. `app/api/essay-colosseum/list/route.ts` now also returns matches where the user is `invited_user_id` (was missing — invitees never saw incoming invites). NEW: `app/api/essay-colosseum/judge/route.ts` (POST — Zod-validated 1-10 scores + ≤2000 char feedback, awards 25 coins idempotency-keyed `judge-${submission}-${judge}`, RLS enforces "not your own match"); `app/api/essay-colosseum/arena/route.ts` (GET — closed matches user did NOT participate in, with both submissions and `already_judged` flag); `app/api/essay-colosseum/leaderboard/route.ts` (GET — top 50 by wins, avg_peer_score). |
+| UI | `app/essay-colosseum/page.tsx` adds 3 tabs (My Matches / Judge Arena / Leaderboard); arena shows side-by-side submissions with score+feedback inputs and "+25 coins" CTA; leaderboard table ranks by wins. List view now treats `pending`/`accepted` correctly (invitees see Accept; accepted matches show Write). |
+| Smoke | `scripts/verification/essay-colosseum-peer-smoke.mjs` — **10/10 PASS** against cloud (seed 3 users → pending match with `invited_user_id` → accept flips to accepted → both submit → close → judge inserts peer judgment → UNIQUE 23505 blocks duplicate → RLS blocks participant from judging own match → judgments readable on closed matches → leaderboard reflects winner row). |
+| Build | `npm run build` GREEN — 7 essay-colosseum routes registered (`accept`, `arena`, `create`, `judge`, `leaderboard`, `list`, `submit`) + page (3.69 kB). |
+
+**Honest gaps:** Leaderboard view groups all judges' avg into one number per user; per-period (daily/weekly) views deferred. Peer-judge feedback is not currently surfaced back to the essayist's own dashboard — only aggregated into the leaderboard avg. The arena's "non-participant" filter relies on a 20-row window (`limit 20`), which is fine for current scale but will need pagination later.
+
+---
+
 ## Status legend
 
 - **scaffold** — code exists, untested

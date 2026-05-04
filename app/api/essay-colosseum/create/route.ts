@@ -16,14 +16,23 @@ export async function POST(request: NextRequest) {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-    let opponentId = null;
+    let invitedId: string | null = null;
     if (opponent_email) {
       const { data: opp } = await supabase.from('users').select('id').eq('email', opponent_email).single();
-      opponentId = opp?.id || null;
+      invitedId = opp?.id || null;
+      if (!invitedId) return NextResponse.json({ error: 'Invited user not found' }, { status: 404 });
+      if (invitedId === user.id) return NextResponse.json({ error: 'Cannot invite yourself' }, { status: 400 });
     }
 
     const { data, error } = await supabase.from('essay_colosseum_matches')
-      .insert({ topic: topic.trim(), initiator_id: user.id, opponent_id: opponentId, status: 'open', ai_verdict: {} })
+      .insert({
+        topic: topic.trim(),
+        initiator_id: user.id,
+        invited_user_id: invitedId,
+        opponent_id: null,
+        status: invitedId ? 'pending' : 'open',
+        ai_verdict: {},
+      })
       .select().single();
 
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });

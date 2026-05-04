@@ -23,7 +23,35 @@ interface Submission {
   submitted_at: string;
 }
 
+interface ArenaSubmission {
+  id: string;
+  match_id: string;
+  user_id: string;
+  essay_text: string;
+  word_count: number;
+  scores: any;
+  already_judged: boolean;
+}
+interface ArenaMatch {
+  id: string;
+  topic: string;
+  initiator_id: string;
+  opponent_id: string | null;
+  completed_at: string | null;
+  submissions: ArenaSubmission[];
+}
+interface LeaderRow {
+  user_id: string;
+  email: string;
+  wins: number;
+  matches_played: number;
+  avg_peer_score: number;
+  peer_judgments_received: number;
+  last_match_at: string | null;
+}
+
 export default function EssayColosseumPage() {
+  const [tab, setTab] = useState<'matches' | 'arena' | 'leaderboard'>('matches');
   const [view, setView] = useState<'list' | 'create' | 'write' | 'result'>('list');
   const [matches, setMatches] = useState<Match[]>([]);
   const [topic, setTopic] = useState('');
@@ -35,10 +63,59 @@ export default function EssayColosseumPage() {
   const [error, setError] = useState('');
   const [timer, setTimer] = useState(1800); // 30 min default
   const [timerRunning, setTimerRunning] = useState(false);
+  const [arena, setArena] = useState<ArenaMatch[]>([]);
+  const [leaderboard, setLeaderboard] = useState<LeaderRow[]>([]);
+  const [judgeForm, setJudgeForm] = useState<Record<string, { score_overall: number; feedback: string }>>({});
 
   useEffect(() => {
     loadMatches();
   }, []);
+
+  useEffect(() => {
+    if (tab === 'arena') loadArena();
+    if (tab === 'leaderboard') loadLeaderboard();
+  }, [tab]);
+
+  async function loadArena() {
+    setLoading(true);
+    try {
+      const res = await fetch('/api/essay-colosseum/arena');
+      const data = await res.json();
+      setArena(data.matches || []);
+    } catch { setError('Failed to load arena'); }
+    setLoading(false);
+  }
+
+  async function loadLeaderboard() {
+    setLoading(true);
+    try {
+      const res = await fetch('/api/essay-colosseum/leaderboard');
+      const data = await res.json();
+      setLeaderboard(data.leaderboard || []);
+    } catch { setError('Failed to load leaderboard'); }
+    setLoading(false);
+  }
+
+  async function submitJudgment(submissionId: string) {
+    const f = judgeForm[submissionId];
+    if (!f || !f.score_overall) return;
+    setLoading(true);
+    try {
+      const res = await fetch('/api/essay-colosseum/judge', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          submission_id: submissionId,
+          score_overall: Number(f.score_overall),
+          feedback: f.feedback || undefined,
+        }),
+      });
+      const data = await res.json();
+      if (data.success) loadArena();
+      else setError(data.error || 'Failed to submit judgment');
+    } catch { setError('Failed to submit judgment'); }
+    setLoading(false);
+  }
 
   async function loadMatches() {
     setLoading(true);
@@ -121,8 +198,117 @@ export default function EssayColosseumPage() {
 
       {error && <p className="text-red-400 text-sm">{error}</p>}
 
+      {/* Tabs */}
+      <div className="flex gap-2 border-b border-slate-800">
+        {(['matches', 'arena', 'leaderboard'] as const).map(t => (
+          <button
+            key={t}
+            onClick={() => setTab(t)}
+            className={`px-4 py-2 text-sm font-medium capitalize transition ${tab === t ? 'text-amber-400 border-b-2 border-amber-400' : 'text-slate-400 hover:text-slate-200'}`}
+          >
+            {t === 'matches' ? '⚔️ My Matches' : t === 'arena' ? '🧑‍⚖️ Judge Arena' : '🏆 Leaderboard'}
+          </button>
+        ))}
+      </div>
+
+      {/* Arena View */}
+      {tab === 'arena' && (
+        <div className="space-y-4">
+          {loading && <p className="text-sm text-slate-500">Loading…</p>}
+          {!loading && arena.length === 0 && <p className="text-sm text-slate-500">No closed matches available to judge right now.</p>}
+          {arena.map(m => (
+            <div key={m.id} className="bg-slate-900 border border-slate-800 rounded-lg p-4">
+              <p className="text-sm font-semibold text-slate-100 mb-3">{m.topic}</p>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {m.submissions.map((s, idx) => {
+                  const f = judgeForm[s.id] || { score_overall: 7, feedback: '' };
+                  return (
+                    <div key={s.id} className="bg-slate-800 rounded-lg p-3">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-xs uppercase tracking-wider text-slate-400">Player {idx === 0 ? 'A' : 'B'}</span>
+                        <span className="text-xs text-slate-500">{s.word_count} words</span>
+                      </div>
+                      <p className="text-xs text-slate-300 whitespace-pre-wrap max-h-48 overflow-auto bg-slate-900 rounded p-2 mb-3">{s.essay_text}</p>
+                      {s.already_judged ? (
+                        <p className="text-xs text-emerald-400">✓ You already judged this submission</p>
+                      ) : (
+                        <div className="space-y-2">
+                          <label className="text-xs text-slate-400 block">
+                            Score (1-10)
+                            <input
+                              type="number"
+                              min={1}
+                              max={10}
+                              value={f.score_overall}
+                              onChange={e => setJudgeForm(prev => ({ ...prev, [s.id]: { ...f, score_overall: Number(e.target.value) } }))}
+                              className="w-full bg-slate-900 border border-slate-700 rounded px-2 py-1 mt-1 text-sm text-slate-100 focus:outline-none focus:border-amber-500"
+                            />
+                          </label>
+                          <label className="text-xs text-slate-400 block">
+                            Feedback (optional, ≤2000 chars)
+                            <textarea
+                              value={f.feedback}
+                              onChange={e => setJudgeForm(prev => ({ ...prev, [s.id]: { ...f, feedback: e.target.value } }))}
+                              className="w-full bg-slate-900 border border-slate-700 rounded px-2 py-1 mt-1 text-xs text-slate-100 focus:outline-none focus:border-amber-500"
+                              rows={2}
+                              maxLength={2000}
+                            />
+                          </label>
+                          <button
+                            onClick={() => submitJudgment(s.id)}
+                            disabled={loading}
+                            className="bg-amber-600 hover:bg-amber-500 disabled:opacity-50 text-white px-3 py-1 rounded text-xs transition"
+                          >
+                            Submit Judgment (+25 coins)
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Leaderboard View */}
+      {tab === 'leaderboard' && (
+        <div className="space-y-4">
+          <div className="bg-slate-900 border border-slate-800 rounded-lg overflow-hidden">
+            <table className="w-full text-sm">
+              <thead className="bg-slate-800 text-slate-400 text-xs uppercase tracking-wider">
+                <tr>
+                  <th className="px-3 py-2 text-left">#</th>
+                  <th className="px-3 py-2 text-left">User</th>
+                  <th className="px-3 py-2 text-right">Wins</th>
+                  <th className="px-3 py-2 text-right">Played</th>
+                  <th className="px-3 py-2 text-right">Avg Peer</th>
+                  <th className="px-3 py-2 text-right">Judgments</th>
+                </tr>
+              </thead>
+              <tbody>
+                {leaderboard.map((r, idx) => (
+                  <tr key={r.user_id} className="border-t border-slate-800">
+                    <td className="px-3 py-2 text-slate-500">{idx + 1}</td>
+                    <td className="px-3 py-2 text-slate-100">{r.email?.split('@')[0] || r.user_id.slice(0, 8)}</td>
+                    <td className="px-3 py-2 text-right text-amber-400 font-semibold">{r.wins}</td>
+                    <td className="px-3 py-2 text-right text-slate-300">{r.matches_played}</td>
+                    <td className="px-3 py-2 text-right text-slate-300">{Number(r.avg_peer_score).toFixed(2)}</td>
+                    <td className="px-3 py-2 text-right text-slate-500">{r.peer_judgments_received}</td>
+                  </tr>
+                ))}
+                {leaderboard.length === 0 && (
+                  <tr><td colSpan={6} className="px-3 py-4 text-center text-slate-500">No matches closed yet.</td></tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
       {/* List View */}
-      {view === 'list' && (
+      {tab === 'matches' && view === 'list' && (
         <div className="space-y-4">
           <button onClick={() => setView('create')} className="bg-amber-600 hover:bg-amber-500 text-white px-5 py-2 rounded-lg text-sm font-medium transition">
             ⚔️ Challenge a Friend
@@ -138,10 +324,10 @@ export default function EssayColosseumPage() {
                   )}
                 </div>
                 <div className="flex gap-2">
-                  {m.status === 'open' && !m.opponent_id && (
+                  {(m.status === 'open' || m.status === 'pending') && !m.opponent_id && (
                     <button onClick={() => acceptMatch(m.id)} className="bg-emerald-600 hover:bg-emerald-500 text-white px-3 py-1 rounded text-xs transition">Accept</button>
                   )}
-                  {m.status === 'open' && (
+                  {(m.status === 'open' || m.status === 'accepted') && (
                     <button onClick={() => { setActiveMatch(m); setView('write'); setTimer(1800); setTimerRunning(true); }} className="bg-slate-700 hover:bg-slate-600 text-white px-3 py-1 rounded text-xs transition">Write</button>
                   )}
                   {m.status === 'closed' && (
@@ -156,7 +342,7 @@ export default function EssayColosseumPage() {
       )}
 
       {/* Create View */}
-      {view === 'create' && (
+      {tab === 'matches' && view === 'create' && (
         <div className="space-y-4 bg-slate-900 border border-slate-800 rounded-lg p-6">
           <h2 className="text-lg font-bold text-slate-100">New Challenge</h2>
           <input value={topic} onChange={e => setTopic(e.target.value)} placeholder="Essay topic (e.g., Climate Change & Governance)"
@@ -174,7 +360,7 @@ export default function EssayColosseumPage() {
       )}
 
       {/* Write View */}
-      {view === 'write' && activeMatch && (
+      {tab === 'matches' && view === 'write' && activeMatch && (
         <div className="space-y-4">
           <div className="flex items-center justify-between">
             <h2 className="text-lg font-bold text-slate-100">{activeMatch.topic}</h2>
@@ -197,7 +383,7 @@ export default function EssayColosseumPage() {
       )}
 
       {/* Result View */}
-      {view === 'result' && activeMatch && (
+      {tab === 'matches' && view === 'result' && activeMatch && (
         <div className="space-y-6">
           <h2 className="text-lg font-bold text-slate-100">Battle Results</h2>
           {activeMatch.ai_verdict && (
