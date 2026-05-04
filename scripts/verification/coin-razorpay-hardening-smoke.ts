@@ -1,5 +1,5 @@
-// Sprint 7-D smoke — atomic award_coins RPC + Stripe webhook dedup.
-// Run: npx tsx scripts/verification/coin-stripe-hardening-smoke.ts
+// Sprint 7-D smoke — atomic award_coins RPC + Razorpay webhook dedup.
+// Run: npx tsx scripts/verification/coin-razorpay-hardening-smoke.ts
 //
 // Requires SUPABASE_SERVICE_ROLE_KEY + NEXT_PUBLIC_SUPABASE_URL in env.
 
@@ -70,28 +70,28 @@ async function main() {
   if (r5 === -1) ok('negative amount returns -1');
   else bad('negative amount', `expected -1, got ${r5}`);
 
-  // 6. Stripe webhook dedup — first insert succeeds
-  const eventId = `evt_smoke_${Date.now()}`;
-  const { error: insErr1 } = await sb.from('stripe_webhook_events').insert({
-    event_id: eventId, type: 'checkout.session.completed', user_id: userId,
+  // 6. Razorpay webhook dedup — first insert succeeds (provider=razorpay)
+  const eventId = `evt_rzp_smoke_${Date.now()}`;
+  const { error: insErr1 } = await sb.from('payment_webhook_events').insert({
+    event_id: eventId, provider: 'razorpay', type: 'payment.captured', user_id: userId,
     payload: { id: eventId, mock: true },
   });
-  if (insErr1) bad('first stripe event insert', insErr1.message);
-  else ok('first stripe webhook event insert succeeds');
+  if (insErr1) bad('first razorpay event insert', insErr1.message);
+  else ok('first razorpay webhook event insert succeeds');
 
   // 7. Replay → 23505
-  const { error: insErr2 } = await sb.from('stripe_webhook_events').insert({
-    event_id: eventId, type: 'checkout.session.completed', user_id: userId,
+  const { error: insErr2 } = await sb.from('payment_webhook_events').insert({
+    event_id: eventId, provider: 'razorpay', type: 'payment.captured', user_id: userId,
     payload: { id: eventId, mock: true },
   });
-  if (insErr2 && insErr2.code === '23505') ok('replayed stripe event blocked by UNIQUE PK');
-  else bad('stripe replay should fail with 23505', insErr2?.code || 'no error');
+  if (insErr2 && insErr2.code === '23505') ok('replayed razorpay event blocked by UNIQUE PK');
+  else bad('razorpay replay should fail with 23505', insErr2?.code || 'no error');
 
   // Cleanup
   try {
     await sb.from('coin_transactions').delete().eq('user_id', userId);
     await sb.from('user_balances').delete().eq('user_id', userId);
-    await sb.from('stripe_webhook_events').delete().eq('event_id', eventId);
+    await sb.from('payment_webhook_events').delete().eq('event_id', eventId);
     await sb.from('users').delete().eq('id', userId);
     await sb.auth.admin.deleteUser(userId);
   } catch {}
