@@ -75,20 +75,26 @@ export async function closeAllQueues(): Promise<void> {
   queues.clear();
 }
 
-export async function getQueueDepths(): Promise<Record<QueueName, {
+export async function getQueueDepths(timeoutMs = 5000): Promise<Record<QueueName, {
   waiting: number; active: number; completed: number; failed: number; delayed: number;
 }>> {
   const out: Record<string, any> = {};
-  for (const name of ALL_QUEUE_NAMES) {
-    const q = getQueue(name);
-    const counts = await q.getJobCounts('waiting','active','completed','failed','delayed');
-    out[name] = {
-      waiting:   counts.waiting   ?? 0,
-      active:    counts.active    ?? 0,
-      completed: counts.completed ?? 0,
-      failed:    counts.failed    ?? 0,
-      delayed:   counts.delayed   ?? 0,
-    };
-  }
+  const deadline = new Promise<never>((_, reject) =>
+    setTimeout(() => reject(new Error(`getQueueDepths timed out after ${timeoutMs}ms (Redis unreachable?)`)), timeoutMs)
+  );
+  const work = (async () => {
+    for (const name of ALL_QUEUE_NAMES) {
+      const q = getQueue(name);
+      const counts = await q.getJobCounts('waiting','active','completed','failed','delayed');
+      out[name] = {
+        waiting:   counts.waiting   ?? 0,
+        active:    counts.active    ?? 0,
+        completed: counts.completed ?? 0,
+        failed:    counts.failed    ?? 0,
+        delayed:   counts.delayed   ?? 0,
+      };
+    }
+  })();
+  await Promise.race([work, deadline]);
   return out as any;
 }

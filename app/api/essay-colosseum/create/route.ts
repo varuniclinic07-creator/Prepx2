@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase-server';
+import { getAdminClient } from '@/lib/supabase-admin';
 import { z } from 'zod';
 
 const BodySchema = z.object({ topic: z.string().min(1).max(10000), opponent_email: z.string().email().optional() });
@@ -18,7 +19,11 @@ export async function POST(request: NextRequest) {
 
     let invitedId: string | null = null;
     if (opponent_email) {
-      const { data: opp } = await supabase.from('users').select('id').eq('email', opponent_email).single();
+      // RLS on public.users only exposes the caller's own row, so an invitee
+      // lookup-by-email needs the service-role client. Read-only, single-field
+      // select — no other side effects, so the elevated privilege is bounded.
+      const admin = getAdminClient();
+      const { data: opp } = await admin.from('users').select('id').eq('email', opponent_email).maybeSingle();
       invitedId = opp?.id || null;
       if (!invitedId) return NextResponse.json({ error: 'Invited user not found' }, { status: 404 });
       if (invitedId === user.id) return NextResponse.json({ error: 'Cannot invite yourself' }, { status: 400 });
