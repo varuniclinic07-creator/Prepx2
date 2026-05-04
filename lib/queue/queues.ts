@@ -14,6 +14,43 @@ export const DEFAULT_JOB_OPTS: JobsOptions = {
   backoff:  { type: 'exponential', delay: 5_000 },
 };
 
+// Per-queue worker configuration.
+// LLM-heavy queues run lean (concurrency 1-2) and rate-limited so the AI router
+// circuit breakers don't get stuck open. Coach/study can run wider.
+// `limiter.max` = max jobs per `limiter.duration` ms across this worker process.
+export interface QueueWorkerConfig {
+  concurrency: number;
+  limiter?: { max: number; duration: number };
+}
+
+export const QUEUE_WORKER_CONFIG: Record<QueueName, QueueWorkerConfig> = {
+  // Light, fast — coach replies + study recommendations.
+  'coach-jobs':     { concurrency: 4 },
+  'study-jobs':     { concurrency: 4 },
+
+  // Network/LLM-heavy — research scrape + bundle grouping. Cap to avoid
+  // hammering source rate-limits + AI tier breakers.
+  'research-jobs':  { concurrency: 2, limiter: { max: 6, duration: 60_000 } },
+  'bundle-jobs':    { concurrency: 1, limiter: { max: 4, duration: 60_000 } },
+
+  // LLM-bound generators. One-at-a-time per queue keeps tier cascade healthy.
+  'content-jobs':   { concurrency: 2, limiter: { max: 6, duration: 60_000 } },
+  'script-jobs':    { concurrency: 1, limiter: { max: 4, duration: 60_000 } },
+  'refine-jobs':    { concurrency: 2, limiter: { max: 6, duration: 60_000 } },
+  'mnemonic-jobs':  { concurrency: 2, limiter: { max: 8, duration: 60_000 } },
+  'imagine-jobs':   { concurrency: 1, limiter: { max: 3, duration: 60_000 } },
+  'mindmap-jobs':   { concurrency: 2, limiter: { max: 6, duration: 60_000 } },
+  'shorts-jobs':    { concurrency: 1, limiter: { max: 4, duration: 60_000 } },
+  'interview-jobs': { concurrency: 2, limiter: { max: 6, duration: 60_000 } },
+
+  // GPU-bound — render queues are throttled hardest; ComfyUI is single-tenant.
+  'render-jobs':    { concurrency: 1, limiter: { max: 2, duration: 60_000 } },
+  'ca-video-jobs':  { concurrency: 1, limiter: { max: 2, duration: 60_000 } },
+
+  // Observability-only — DLQ consumer just records the event.
+  'dead-letter':    { concurrency: 1 },
+};
+
 const queues = new Map<QueueName, Queue>();
 
 export function getQueue(name: QueueName): Queue {

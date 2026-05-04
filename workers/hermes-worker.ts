@@ -19,7 +19,7 @@ import {
   type CoachJobPayload,
   type StudyJobPayload,
 } from '../lib/queue/types';
-import { getQueue, DEFAULT_JOB_OPTS } from '../lib/queue/queues';
+import { getQueue, DEFAULT_JOB_OPTS, QUEUE_WORKER_CONFIG } from '../lib/queue/queues';
 import { getAdminClient } from '../lib/supabase-admin';
 import {
   runHermesPlanner,
@@ -377,11 +377,22 @@ async function boot(): Promise<void> {
   for (const name of ALL_QUEUE_NAMES) {
     const agentType = AGENT_TYPE_FOR_QUEUE[name];
     const inner = PROCESSORS[name];
+    const cfg = QUEUE_WORKER_CONFIG[name];
     const w = new Worker(
       name,
       wrapProcessor(agentType, inner),
-      { connection: getConnection(), concurrency: 4 }
+      {
+        connection: getConnection(),
+        concurrency: cfg.concurrency,
+        ...(cfg.limiter ? { limiter: cfg.limiter } : {}),
+        // Reclaim jobs whose worker died mid-flight after 60s; cap recoveries
+        // at 2 so a perpetually-hanging job is promoted to dead_letter.
+        stalledInterval: 60_000,
+        maxStalledCount: 2,
+      }
     );
+    log.info({ queue: name, concurrency: cfg.concurrency, limiter: cfg.limiter ?? null },
+      'worker config');
     w.on('failed', async (job, err) => {
       log.error({ queue: name, jobId: job?.id, attemptsMade: job?.attemptsMade, err: err?.message },
         'job failed');

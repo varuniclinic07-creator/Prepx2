@@ -615,6 +615,20 @@ User greenlit full Sprint 7 (B → A → C → D) on session resume. Cluster B f
 
 ---
 
+## Sprint 7-A — Hermes 24/7 worker hardening (2026-05-04, landed on main)
+
+| Layer | Change |
+|---|---|
+| Config | `lib/queue/queues.ts` exports new `QUEUE_WORKER_CONFIG: Record<QueueName, QueueWorkerConfig>` mapping each of the 15 queues to `{concurrency, limiter?}`. Coach/study run at concurrency=4 with no limiter (latency-sensitive). LLM/network-heavy queues (research/content/script/refine/mnemonic/imagine/mindmap/shorts/interview/bundle) get concurrency 1-2 + per-minute rate limiters (4-8/min). Render queues (render/ca-video) cap at concurrency=1 + 2/min (single-tenant ComfyUI). Replaces the old "concurrency=4 across the board" which was saturating AI-router circuit breakers. |
+| Worker | `workers/hermes-worker.ts` consumes `QUEUE_WORKER_CONFIG` per queue at boot; logs the chosen `concurrency`/`limiter` per queue. Adds explicit `stalledInterval: 60_000` + `maxStalledCount: 2` so workers that died mid-flight have their jobs reclaimed within 60s and a job that hangs twice is promoted to dead_letter. |
+| Health | NEW `app/api/health/hermes/route.ts` — unauthenticated probe returning 200 if Redis reachable AND no queue has `waiting > 100` AND no queue has `failed > 50`; returns 503 with `issues[]` otherwise. Designed for Coolify/UptimeRobot. (Sibling of existing `/api/health` which only checks Postgres.) |
+| Smoke | NEW `scripts/verification/hermes-hardening-smoke.ts` — static config contract: covers all 15 queues, concurrency≥1 each, every heavy queue rate-limited, coach/study NOT throttled. **4/4 PASS** via `npx tsx`. |
+| Build | `npm run build` GREEN — `/api/health/hermes` registered alongside `/api/health`. |
+
+**Honest gaps:** Limiter values are best-guess defaults; real throughput tuning will need production telemetry. The health endpoint reads `failed` lifetime not last-hour — a noisy counter will trip 503 forever once 50 failures accumulate; `removeOnFail.age=604_800` (7d) bounds it but a windowed rate would be better. No alert webhook on 503 yet — `/api/health/hermes` returning 503 just gets the next probe; pager wiring is downstream config.
+
+---
+
 ## Status legend
 
 - **scaffold** — code exists, untested
