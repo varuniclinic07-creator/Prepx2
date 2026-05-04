@@ -38,6 +38,37 @@ The full long-form version of this directive is at `feedback_user_mega_directive
 
 ---
 
+## 🚨🚨 NON-NEGOTIABLE WORKING RULES (added 2026-05-04 — re-read every session, never break)
+
+The user has stated these rules explicitly and does NOT want to repeat them. Any new session, any new slice, any new model — these apply unconditionally:
+
+### Rule 1 — Run the feature after every build/compile
+
+`npm run build` GREEN, `npx tsc --noEmit` GREEN, smoke PASS — **none of these prove the feature works.** They only prove syntax/types/static contracts. After every compile-clean step:
+
+1. Start the dev server (or a real worker) if it isn't already running.
+2. Hit the actual route/UI/worker the slice exposes — browser flow, curl/fetch, or queue dispatch.
+3. Verify side-effects in DB / storage / queue, not just HTTP 200.
+4. ONLY then mark the slice done and move on.
+
+Static-config smokes are NOT a substitute. "Build GREEN, smoke PASS" is not a finish line — running the feature is.
+
+### Rule 2 — Speed up without dropping quality
+
+User feedback: too slow per feature. Tighten the loop:
+
+- **Parallelise independent tool calls in a single message** — reads, greps, smokes, type-checks. Sequential single-tool turns are the biggest leak.
+- **Don't re-read files** already in context.
+- **Cut narration between tool calls.** One short sentence per real update; no recap of what the user just saw.
+- **Don't re-confirm authorised batches.** If the user greenlit Sprint N (A+B+C+D), don't ask again before each cluster.
+- **Skip "I'll continue with…" prefaces.** Just continue.
+
+Quality gates DO NOT change: full-flow E2E, RLS errors surfaced, CHECKPOINT updated before pause, no scaffolding, outstanding-or-don't-ship.
+
+These two rules supersede any default "be careful, ask first" instinct. Both are tracked in memory (`feedback_run_after_build.md`, `feedback_speed_without_quality_loss.md`) AND pinned here so a fresh session sees them immediately.
+
+---
+
 ## 🟥 Resume protocol (read FIRST on any new session)
 
 If you are a fresh Claude session opening this repo, do these in order BEFORE any code edits:
