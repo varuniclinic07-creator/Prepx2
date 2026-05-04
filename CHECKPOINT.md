@@ -645,6 +645,20 @@ User chose "Full multi-shot pipeline now" over foundation-only. Replaces the leg
 
 ---
 
+## Sprint 7-D — Coin economy hardening + Stripe webhook signature verify (2026-05-04, landed on main)
+
+| Layer | Change |
+|---|---|
+| Schema | `supabase/migrations/076_atomic_award_coins_and_stripe_dedup.sql` applied to cloud `vbddpwxbijwuarmrexme`. NEW `award_coins(p_user_id, p_amount, p_reason, p_idempotency_key)` RPC: single-transaction insert into `coin_transactions` + `user_balances` upsert; replays return current balance, double-credit impossible. NEW `stripe_webhook_events` table (event_id PRIMARY KEY) for replay protection; admin-read RLS. |
+| Lib | `lib/coins.ts` `awardCoins` rewritten — was non-atomic check-then-insert-then-update (race window between idempotency check and balance update). Now a single `rpc('award_coins')` call. UNIQUE(user_id, idempotency_key) was already on `coin_transactions` so replay was caught at the row level, but the JS path could still desync coin_transactions and user_balances on a crash mid-flight. |
+| API | `app/api/webhooks/stripe/route.ts` upgraded: signature verify now also enforces a **5-minute timestamp tolerance** (rejects captured-and-replayed payloads); webhook processing now records every `event.id` in `stripe_webhook_events` and returns `{received:true, duplicate:true}` on a UNIQUE PK violation, so a Stripe-side retry of an already-processed event cannot double-grant a subscription. Existing HMAC + timing-safe compare retained. |
+| Smoke | NEW `scripts/verification/coin-stripe-hardening-smoke.ts` — **7/7 PASS** against cloud. Seeds an auth user, calls `award_coins` 3× (first +50, replay no-op, distinct key +30 → balance 80), confirms exactly 2 coin_transactions rows, rejects negative amount with -1; inserts stripe event then confirms replayed insert returns Postgres error code 23505. |
+| Build | `npx tsc --noEmit` GREEN. |
+
+**Honest gaps:** Razorpay webhook (separate route under `app/api/payments/razorpay-webhook/`) was not touched in this slice — it has its own HMAC verify already but no event-ID dedup. The `spend_coins` RPC pre-existed (migration 044) with `FOR UPDATE` row locking, so spending was already atomic; this slice only fixed the awarding side. No alerting on signature-rejected webhooks yet — they just return 400; if Stripe sends a stale capture we don't page anyone.
+
+---
+
 ## Status legend
 
 - **scaffold** — code exists, untested

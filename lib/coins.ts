@@ -28,45 +28,16 @@ export async function awardCoins(
 ): Promise<boolean> {
   if (amount <= 0) return false;
 
-  const { data: existing } = await supabase
-    .from('coin_transactions')
-    .select('id')
-    .eq('user_id', userId)
-    .eq('idempotency_key', idempotencyKey)
-    .single();
-  if (existing) return false;
-
-  const { error: insertErr } = await supabase.from('coin_transactions').insert({
-    user_id: userId,
-    amount,
-    reason,
-    idempotency_key: idempotencyKey,
+  // Atomic: a UNIQUE(user_id, idempotency_key) catches replays inside the RPC,
+  // and the transaction insert + balance upsert can't desync mid-flight.
+  const { data, error } = await supabase.rpc('award_coins', {
+    p_user_id: userId,
+    p_amount: amount,
+    p_reason: reason,
+    p_idempotency_key: idempotencyKey,
   });
-  if (insertErr) return false;
-
-  const { data: balance } = await supabase
-    .from('user_balances')
-    .select('coins,lifetime_earned')
-    .eq('user_id', userId)
-    .single();
-
-  if (balance) {
-    await supabase
-      .from('user_balances')
-      .update({
-        coins: balance.coins + amount,
-        lifetime_earned: balance.lifetime_earned + amount,
-        updated_at: new Date().toISOString(),
-      })
-      .eq('user_id', userId);
-  } else {
-    await supabase.from('user_balances').insert({
-      user_id: userId,
-      coins: amount,
-      lifetime_earned: amount,
-    });
-  }
-  return true;
+  if (error) return false;
+  return typeof data === 'number' && data >= 0;
 }
 
 export async function spendCoins(
