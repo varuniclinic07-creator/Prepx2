@@ -629,6 +629,22 @@ User greenlit full Sprint 7 (B → A → C → D) on session resume. Cluster B f
 
 ---
 
+## Sprint 7-C — Multi-shot video pipeline (2026-05-04, landed on main)
+
+User chose "Full multi-shot pipeline now" over foundation-only. Replaces the legacy single-prompt render that only baked the first marker.
+
+| Layer | Change |
+|---|---|
+| Schema | `supabase/migrations/075_video_shots_multi_shot.sql` applied to cloud `vbddpwxbijwuarmrexme`. New `video_shots` table — one row per shot with `kind` enum (`title`/`manim`/`comfy`/`narration`), `position`, `start_seconds`, `duration_seconds`, `prompt`, `manifest` JSONB, `media_path`, `status` enum (`queued`/`rendering`/`succeeded`/`failed`/`skipped`), `attempt`, `error_text`. UNIQUE `(lecture_id, position)`. Admin-all RLS. Reuses `touch_updated_at()` trigger from migration 099. |
+| Lib | NEW `lib/video/shot-decomposer.ts` — `decomposeMarkers(markers, fallback)` produces typed `DecomposedShot[]` from a `video_scripts.script_markers` array. Heuristics: cues with `equation/formula/graph/derivation/...` → `manim`; short captions or `caption/title card/...` → `title`; long descriptive cues → `comfy`. Empty markers fall back to one title shot for the whole duration so the failure mode is visible. NEW `lib/video/shot-renderers.ts` — `renderTitleShot`, `renderManimShot`, `renderNarrationShot` emit JSON manifests for a deferred bake worker; `renderComfyShot` drives ComfyUI synchronously and uploads the output to `lectures/{lectureId}/shots/{position}.{ext}`. `dispatchShot` routes by kind and returns `{manifest, media_path, status, error_text?}`. NEW `lib/video/multi-shot-processor.ts` — `processRenderJobMultiShot` decomposes the script, inserts all shot rows up-front, dispatches each shot, persists per-shot status/manifest/media_path, then writes a merge manifest to `video_lectures.render_meta.merge_manifest` and sets `status` to `awaiting_bake` (some queued), `composing` (all baked, merge pending), or `failed` (all shots failed). |
+| Wiring | `lib/video/processors.ts` `processRenderJob` is now a thin shim around `processRenderJobMultiShot`. Drops the inline ComfyUI single-prompt code that only rendered the first marker. |
+| Smoke | NEW `scripts/verification/multi-shot-pipeline-smoke.ts` — **8/8 PASS** via `npx tsx`. Asserts decomposer fallback, kind heuristics (manim/comfy/title), sort order, dense `position`, duration clamp, AND verifies `video_shots` table is reachable in the cloud DB via service-role key. |
+| Build | `npx tsc --noEmit` GREEN. |
+
+**Honest gaps:** Title/Manim/Narration shots persist a manifest but **do not yet bake to MP4** — they need a separate Remotion-CLI / Manim-CLI sidecar that consumes `video_shots.manifest` and uploads to `media_path`. Lecture status `awaiting_bake` makes this visible to admin. The ffmpeg merge step (manifest → final MP4) is also separate; current flow stops at the merge manifest. Comfy shots are dispatched sequentially (single GPU) — parallelisation requires multi-tenant ComfyUI. No retry-per-shot yet; failed shots stick on first attempt (the existing `render-retry-sweep` operates at lecture-level).
+
+---
+
 ## Status legend
 
 - **scaffold** — code exists, untested
