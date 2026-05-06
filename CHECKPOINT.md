@@ -1182,6 +1182,68 @@ NEXT_PUBLIC_BASE_URL=http://localhost:3000 SMOKE_PHRASE=1 \
 
 ---
 
+## Sprint 9-D Phase D — `/lectures/[id]/learn` interactive UI (2026-05-07, ✅ Playwright walk green)
+
+User directive (paraphrased): the UI is a **thin lens over the semantic engine**. It must NOT own retrieval logic, infer timestamps, generate reasoning, or mutate semantic contracts. Only: send query → render grounded response → trigger replay jumps → display formulas/notes → surface semantic links. All intelligence stays server-side.
+
+| Layer | Change |
+|---|---|
+| `app/lectures/[id]/learn/page.tsx` | new — server component. Loads `lecture_jobs` row directly (RLS scoped to owner), guards on UUID/auth/status/concept_index. Mints a fresh 24h signed URL for `lecture.mp4` (falls back to `lecture-remotion.mp4` for back-compat). Hands the client component a minimal payload: `{ lectureJobId, title, durationSec, videoUrl }`. The `concept_index`, notes JSON, quiz JSON, full metadata are NEVER shipped to the browser — the panel queries the server-side semantic engine. |
+| `app/lectures/[id]/learn/LearnView.tsx` | new — single client file holding 7 small components: `<LearnView />` (top-level grid), `<LecturePlayer />` (controlled `<video>` via `forwardRef`), `<AskExplanationPanel />` (input + history state), `<QueryHistoryList />`, `<ResponseCard />` (concept badge + intent + confidence + answer + replay chips + formula card + notes card), `<ReplayTimelineChips />` (▶ buttons that call `videoRef.current.currentTime = seg.start`), `<FormulaCard />` (mono cyan-themed), `<NotesCard />` (slate-themed). Total file: 282 lines. Calls only `POST /api/lectures/${id}/query` with `phrase: true`. No retrieval logic, no timestamp inference, no LLM calls — the API does all of that. |
+| `e2e/sprint9d-learn-ui.spec.ts` | new — Playwright walk against real cloud Supabase. Seeds a smoke user, uploads `outputs/mvp/lecture.mp4` to the `lectures-mvp` bucket, INSERTs a completed `lecture_jobs` row with embedded `concept_index`, signs in via service-role admin to get tokens, navigates to `/lectures/[id]/learn` with `Authorization: Bearer <token>` (uses the bearer-header fallback in `lib/supabase-server.ts`). Asserts: title h1 = "Ohm's Law", "Ask this lecture" header, `<video>` rendered. Types "What is resistance?", clicks Ask, asserts the response card renders with concept badge "Resistance", confidence chip, formula `V = IR`. Clicks the first replay chip, asserts `video.currentTime` jumped from <0.5s to >10s. Cleans up storage object + lecture_jobs row in `finally`. |
+| `e2e/playwright.sprint9d.config.ts` | new — Playwright config that does NOT spawn its own webServer nor override env to dummy values. Reuses whatever's running on `NEXT_PUBLIC_BASE_URL` and pulls real Supabase creds from `.env.local` via `dotenv-cli`. |
+
+### Live evidence (UI smoke):
+
+```
+=== Sprint 9-D Phase D — Playwright UI smoke ===
+Running 1 test using 1 worker
+  ✓  1 [chromium] › e2e\sprint9d-learn-ui.spec.ts:130:5 ›
+       Sprint 9-D — /lectures/[id]/learn AskExplanation walk (22.7s)
+  1 passed (27.9s)
+```
+
+What that 22.7 s actually proved (start → finish):
+1. service-role admin minted/found smoke user `sprint9d-ui-smoke@prepx.test`
+2. uploaded 1.6 MB MP4 to `lectures-mvp/{userId}/{jobId}/lecture.mp4`
+3. INSERT completed `lecture_jobs` row with `metadata.concept_index` populated
+4. signed in via password to mint access/refresh tokens
+5. Chromium navigated to `/lectures/{jobId}/learn` with `Authorization: Bearer <jwt>`
+6. server component loaded lecture_jobs (RLS owner-read), minted signed video URL, server-rendered the page
+7. client hydrated, `<video>` element loaded, "Ask this lecture" panel rendered
+8. typed "What is resistance?" into the input, clicked Ask
+9. browser POSTed to `/api/lectures/{jobId}/query` with `phrase: true` and the bearer header → cache miss → deterministic retrieval + ONE aiChat() call → grounded answer
+10. response card rendered with concept badge "Resistance", confidence, formula `V = IR`, replay chips
+11. clicked the `▶ 00:12–00:18` chip → React state propagated to `videoRef.current.currentTime` → `<video>.currentTime` advanced past 10 s
+12. cleanup ran (delete row + storage object)
+
+### Run command:
+
+```
+# pre-req: dev server on :3000, real Supabase creds in .env.local, outputs/mvp/lecture.mp4 exists
+NEXT_PUBLIC_BASE_URL=http://localhost:3000 \
+  npx dotenv-cli -e .env.local -- \
+  npx playwright test --config e2e/playwright.sprint9d.config.ts
+```
+
+### What changed in shared code:
+
+- Nothing. New folder `app/lectures/[id]/learn/` + new e2e spec + new e2e config. The existing `/lectures/[id]/page.tsx` (legacy `video_lectures`-table viewer) is untouched.
+- No new API routes, no new migrations, no library changes. Phase D is **pure presentation** over the Phase C engine — directive obeyed exactly.
+
+### Honest gaps:
+
+- **No conceptual concept page yet.** `/concepts/[id]/learn` (mirror of the lecture page over `concept_jobs`) is the obvious next slice. The component file is reusable; only the page-level data loader changes.
+- **Video signed URL is server-rendered ONCE per page load.** If the user keeps the page open >24 h, the URL expires and `<video>` will 403. Day-2: a small client-side refresher that pings `/api/lectures/jobs/{id}` when the URL nears expiry.
+- **Query history is in-memory, lost on refresh.** Per directive ("keep it tiny") — no persistence in this slice. Day-2 if students want it: a `query_history` table.
+- **No streaming on the LLM phrasing call.** The panel waits ~1-3 s for the full answer. Day-2 if perceived latency matters: switch to SSE; the deterministic retrieval is fast enough to render before the LLM arrives.
+- **Replay chips assume the lecture player is the same `<video>`.** When/if multiple players coexist (e.g. picture-in-picture), the chips need a player-id selector. Not relevant in the current single-player layout.
+- **Subtitles/captions track is not yet wired.** The `subtitles.srt` signed URL is available but not consumed by `<LecturePlayer />`. Tiny addition once needed.
+- **The page only renders for `lecture_jobs` rows with `concept_index` populated.** Pre-Phase-B jobs (e.g. earlier Sprint 9-A bakes) show "missing semantic index" banner — they need a re-bake to enable `/learn`. Backfill script is straightforward: re-run `buildConceptIndex` over their stored timeline/notes/quiz/metadata bundle and `UPDATE lecture_jobs.metadata`. Not done in this slice.
+- **Pre-existing TS error in `lib/lecture/narration.ts:151`** — still flagged, untouched.
+
+---
+
 ## Status legend
 
 - **scaffold** — code exists, untested
