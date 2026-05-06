@@ -12,6 +12,7 @@
 import type { Job } from 'bullmq';
 import { createHash } from 'crypto';
 import { writeFileSync, mkdirSync, readFileSync } from 'fs';
+import { buildConceptIndex } from '../learning/concept-index';
 import path from 'path';
 import { tmpdir } from 'os';
 import { getAdminClient } from '../supabase-admin';
@@ -284,6 +285,20 @@ export async function processConceptGenerateJob(
       },
     },
   };
+  // Sprint 9-D Phase B — embed concept_index into concept metadata so the
+  // query engine can serve the bundle without re-parsing source files.
+  // Best-effort: never fail the bake if a fixture is malformed.
+  try {
+    const timeline = JSON.parse(readFileSync(lectureResult.artifacts.timelineJson, 'utf8'));
+    const notes    = JSON.parse(readFileSync(lectureResult.artifacts.notesJson,    'utf8'));
+    const quiz     = JSON.parse(readFileSync(lectureResult.artifacts.quizJson,     'utf8'));
+    (enrichedMetadata as any).concept_index = buildConceptIndex({
+      timeline, notes, quiz, metadata: enrichedMetadata,
+    });
+  } catch (e: any) {
+    console.warn(`[sprint-9d] concept buildConceptIndex skipped: ${e?.message || e}`);
+  }
+
   const enrichedMetadataPath = path.join(conceptOutputDir, 'concept-metadata.json');
   writeFileSync(enrichedMetadataPath, JSON.stringify(enrichedMetadata, null, 2), 'utf8');
 
@@ -334,7 +349,15 @@ export async function processConceptGenerateJob(
 
   await sb.from('concept_jobs').update({
     manifest,
-    metadata: enrichedMetadata.concept,
+    // Sprint 9-D Phase B — keep the existing concept block (9-B contract)
+    // but add the concept_index as a sibling so the query API can read it
+    // straight off concept_jobs.metadata without refetching the bundle.
+    metadata: {
+      ...enrichedMetadata.concept,
+      ...((enrichedMetadata as any).concept_index
+        ? { concept_index: (enrichedMetadata as any).concept_index }
+        : {}),
+    },
     status: 'completed',
     progress_percent: 100,
     completed_at: new Date().toISOString(),

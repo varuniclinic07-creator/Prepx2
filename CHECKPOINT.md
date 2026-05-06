@@ -1093,6 +1093,95 @@ npx dotenv-cli -e .env.local -- npx tsx scripts/verification/sprint9c2-dual-outp
 
 ---
 
+## Sprint 9-D Phase C — Query REST API (deterministic core + opt-in LLM phrasing) (2026-05-07, ✅ offline + HTTP E2E green)
+
+User directive (carried over from 9-D Phase A): *"The semantic engine answers the question. The LLM only changes HOW the answer sounds."* Phase C exposes that engine over HTTP. Two routes, identical contract — one for the lecture pipeline (Sprint 9-A), one for the concept pipeline (Sprint 9-B). Both load `concept_index` from the job row's `metadata` JSONB (Phase B persistence) and serve deterministic retrieval first; `phrase=true` triggers ONE `aiChat()` call that wraps the structured fields in teacher-style prose without ever seeing raw timeline/transcript.
+
+| Layer | Change |
+|---|---|
+| `app/api/lectures/[id]/query/route.ts` | new — POST handler. Auth via `createClient()` + `getUser()` (same pattern as `/qa`). Loads `lecture_jobs` row by id (RLS scoped to owner), pulls `metadata.concept_index`, runs `answerQuery({index, q, phrase: false})`. In-memory LRU (256 entries) keyed `${lectureId}::${normalize(q)}` caches deterministic retrieval only. When `phrase=true` is set in body, a separate `answerQuery({phrase: true})` call runs (cached deterministic core stays untouched) and only the natural-language `answer` field is borrowed. Phrasing failures return the deterministic answer + `phraseError` field — pedagogy never breaks because the LLM tier is down. Response shape includes both engine-native fields (`relatedQuizMcqIds`, `scenePositions`) AND directive aliases (`relatedQuiz`, `sourceScenes`) so existing consumers and the directive contract both work. |
+| `app/api/concepts/[id]/query/route.ts` | new — mirror of the lectures route, scoped to `concept_jobs`. Identical caching + shaping + phrase-fallback semantics. |
+| `scripts/verification/sprint9d-query-engine-offline-smoke.ts` | new — pure deterministic smoke. Builds a synthetic `(timeline, notes, quiz, metadata)` tuple, runs `buildConceptIndex` + `answerQuery` for what-is / show-formula / give-recap / unknown-concept paths. Tests `phrase=true` via DI stub (no real aiChat). Zero network, zero API key. Suitable for CI default. |
+| `scripts/verification/sprint9d-query-http-smoke.ts` | new — HTTP E2E smoke. Mints a smoke user via service-role admin client, signs in for cookie/bearer, INSERTs a synthetic completed `lecture_jobs` row with embedded `concept_index`, hits the route 7 times (cache miss → cache hit → recap → phrase=true [opt-in via `SMOKE_PHRASE=1`] → missing-q 400 → unknown-id 404 → invalid-UUID 400), then deletes the synthetic row. Per directive: smokes default to `phrase=false` for stability. |
+
+### Live evidence (offline smoke):
+
+```
+=== Sprint 9-D — query engine offline smoke ===
+  ✔ ConceptIndex.version is 9d-1
+  ✔ Resistance + Voltage concepts built
+  ✔ 5 intents classified correctly (what-is / show-formula / explain-again / jump-to-topic / give-recap)
+  ✔ what-is: matchedConcept=Resistance, confidence=0.99, timestamps non-empty, answer null
+  ✔ show-formula: formulas include V = IR
+  ✔ give-recap: matchedConcept=null, confidence=0.85, timestamps cover full 33.9s
+  ✔ unknown-concept: matchedConcept=null, confidence ≤ 0.1
+  ✔ phrase=true (DI stub): answer populated, matchedConcept unchanged, confidence unchanged
+=== Sprint 9-D OFFLINE SMOKE PASSED ===  passed: 31  failed: 0
+```
+
+### Live evidence (HTTP smoke, phrase=false):
+
+```
+=== Sprint 9-D — query HTTP smoke ===
+smoke user: sprint9d-smoke@prepx.test c53d474c-...
+synthetic lecture_jobs row: 397181f4-9bc8-406b-badf-eec9df246875
+
+--- first call ---  status 200, cached=false, matchedConcept=Resistance, confidence≥0.95
+--- second call --- cached=true, identical confidence (cache hit)
+--- "Give me a recap" --- intent=give-recap, matchedConcept=null, end=33.9
+--- missing q --- 400 ✓
+--- unknown lecture --- 404 ✓
+--- invalid UUID --- 400 ✓
+=== Sprint 9-D HTTP SMOKE PASSED ===  passed: 23  failed: 0
+```
+
+### Live evidence (HTTP smoke, `SMOKE_PHRASE=1`, real aiChat):
+
+```
+--- POST .../query phrase=true (real aiChat) ---
+  ✔ phrase status 200
+  ✔ answer is non-empty string
+  ✔ matchedConcept unchanged by LLM
+  ✔ confidence unchanged by LLM
+  answer: "Resistance is the opposition to electric current, and it can be understood through Ohm's Law, where V = IR, with resistance being a key fact..."
+=== Sprint 9-D HTTP SMOKE PASSED ===  passed: 27  failed: 0
+```
+
+LLM used only the structured retrieval (definition + formula + notes) — did not invent timestamps, scene positions, or quiz IDs. Deterministic core was reused; the answer is the only field that changed.
+
+### Run commands:
+
+```
+# offline (zero deps, deterministic, suitable for CI default)
+npx tsx scripts/verification/sprint9d-query-engine-offline-smoke.ts
+
+# HTTP E2E (requires dev server + .env.local + migration 078)
+NEXT_PUBLIC_BASE_URL=http://localhost:3000 \
+  npx dotenv-cli -e .env.local -- npx tsx scripts/verification/sprint9d-query-http-smoke.ts
+
+# HTTP E2E with real LLM phrasing (token budget)
+NEXT_PUBLIC_BASE_URL=http://localhost:3000 SMOKE_PHRASE=1 \
+  npx dotenv-cli -e .env.local -- npx tsx scripts/verification/sprint9d-query-http-smoke.ts
+```
+
+### What changed in shared code:
+
+- No migration needed — `concept_index` already lives in `lecture_jobs.metadata` / `concept_jobs.metadata` JSONB (Phase B). No new tables. Zero schema risk.
+- No edits to `lib/learning/*` — the engine's existing `QueryResult` shape (with `relatedQuizMcqIds` + `scenePositions`) is preserved; the route layer adds `relatedQuiz` + `sourceScenes` aliases so directive-shaped consumers and engine-native consumers both work.
+- No edits to processors / storage / queue — Phase B already persists `concept_index` for every completed lecture/concept job.
+
+### Honest gaps:
+
+- **In-memory cache is per-process.** A cluster of N Next servers has N independent caches. Day-2 if cache hit-rate matters: Redis or shared LRU.
+- **Phrased answers are not cached.** Per directive: "DO NOT optimize that now." When/if costs warrant: key on `lectureId + queryHash + modelVersion`.
+- **No telemetry table yet.** Directive recommends storing both deterministic payload + phrased answer for hallucination audits / A-B testing. Day-2: a `query_telemetry` table (migration 080+). For now, deterministic responses are reproducible from inputs and aiChat() logs at the router layer suffice for debugging.
+- **No rate limit specific to query routes.** Falls under the default 1000 req/min tier from `middleware.ts`. If abuse becomes a vector, drop to the 100/min LLM-endpoint tier (matches `/qa` neighbors).
+- **`phrase=true` failure surface returns 200 with `phraseError`** — design choice (deterministic answer should reach the user even if the phrasing tier is down). UI must check for `phraseError` if it wants to show a tutor-tone message.
+- **No UI yet** — `/api/lectures/[id]/query` + `/api/concepts/[id]/query` are wired but the `<AskExplanation />` component / Panel integration lives in Sprint 9-D Phase D (next slice).
+- **Pre-existing TS error in `lib/lecture/narration.ts:151`** — unchanged.
+
+---
+
 ## Status legend
 
 - **scaffold** — code exists, untested

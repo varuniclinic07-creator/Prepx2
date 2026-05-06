@@ -7,7 +7,7 @@
 
 import type { Job } from 'bullmq';
 import { createHash } from 'crypto';
-import { writeFileSync } from 'fs';
+import { writeFileSync, readFileSync } from 'fs';
 import path from 'path';
 import { getAdminClient } from '../supabase-admin';
 import type { LectureGenerateJobPayload, LectureStage } from '../queue/types';
@@ -17,6 +17,7 @@ import {
   buildManifest,
   type LectureAssetUpload,
 } from './storage';
+import { buildConceptIndex } from '../learning/concept-index';
 
 const STAGE_PERCENT: Record<LectureStage, number> = {
   'queued':         0,
@@ -139,6 +140,29 @@ export async function processLectureGenerateJob(
   });
 
   await pushStageLog(jobId, 'finalizing', 'started');
+
+  // Sprint 9-D Phase B — build the concept_index from the freshly-baked
+  // artifacts and embed it into metadata.json BEFORE upload, so the
+  // bundle in storage is self-describing for the query engine. Also
+  // mutate result.metadata so lecture_jobs.metadata carries it.
+  try {
+    const timeline = JSON.parse(readFileSync(result.artifacts.timelineJson, 'utf8'));
+    const notes    = JSON.parse(readFileSync(result.artifacts.notesJson,    'utf8'));
+    const quiz     = JSON.parse(readFileSync(result.artifacts.quizJson,     'utf8'));
+    const conceptIndex = buildConceptIndex({
+      timeline,
+      notes,
+      quiz,
+      metadata: result.metadata,
+    });
+    const enrichedMetadata = { ...result.metadata, concept_index: conceptIndex };
+    writeFileSync(result.artifacts.metadataJson, JSON.stringify(enrichedMetadata, null, 2), 'utf8');
+    result.metadata = enrichedMetadata;
+  } catch (e: any) {
+    // Index is best-effort — never fail the bake if a fixture is malformed.
+    // Day-2: validate via lib/schema/educational and log structured failure.
+    console.warn(`[sprint-9d] buildConceptIndex skipped: ${e?.message || e}`);
+  }
 
   // Upload artifacts. Each piece becomes an entry in the manifest.
   const uploads: LectureAssetUpload[] = [
