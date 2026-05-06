@@ -1244,6 +1244,103 @@ NEXT_PUBLIC_BASE_URL=http://localhost:3000 \
 
 ---
 
+## Sprint 9-E Phase A+B+C — Adaptive Learning Memory (deterministic counters + heuristics) (2026-05-07, ✅ offline + HTTP E2E green)
+
+User directive: this is the next category jump — from *interactive lecture player* to *adaptive AI tutor*. Build learning memory: the system must remember what each student struggled with, replayed, queried, failed. **Keep it deterministic for now** — counters + heuristics + semantic mappings, not embeddings. Three phases land in this slice (A: event collection, B: deterministic struggle detection, C: per-concept memory snapshot). Phases D (personalised recap) and E (adaptive querying) are deliberately deferred to the next slice.
+
+| Layer | Change |
+|---|---|
+| `supabase/migrations/080_learning_memory.sql` | new — two tables, both RLS-enabled. **`user_learning_events`** is append-only: `(user_id, lecture_job_id, concept_id?, event_type, metadata, created_at)`. `event_type ∈ {replay_clicked, concept_queried, quiz_failed, quiz_passed, note_opened, recap_requested}`. Authenticated users can SELECT/INSERT their own rows; concept_id is a TEXT slug (matches `lecture_jobs.metadata.concept_index[*].id` — no FK to a non-existent concepts table). Three indexes for the hot read paths. **`user_concept_memory`** is the derived snapshot: `(user_id, lecture_job_id, concept_id, concept_name, replay_count, query_count, quiz_fail_count, quiz_pass_count, mastery_score NUMERIC(3,2), status TEXT)`. UNIQUE on `(user_id, lecture_job_id, concept_id)` so the upsert is idempotent. RLS allows SELECT-own-rows; writes go through the service role only — clients cannot fabricate mastery. Both tables CASCADE on `lecture_jobs DELETE`. Migration applied to remote Supabase via the MCP tool; `list_tables` confirms RLS enabled. |
+| `lib/learning/memory.ts` | new — pure deterministic engine. `classifyStruggle(counters)` returns `{mastery_score, status}` with this rule set: zero events → `fresh` (score 0.5); `quiz_pass≥1 ∧ quiz_fail=0 ∧ replay≤1` → `mastered`; `replay>2 ∨ query>2 ∨ quiz_fail≥1` → `struggling`; otherwise `engaged`. Score: start 0.50, ±0.25 on quiz win/loss, −0.10 each for replay>2 and query>2, clamp [0,1] rounded to 2dp. `recordLearningEvent({...})` INSERTs into `user_learning_events` then calls `refreshConceptMemory()` for concept-scoped events. `refreshConceptMemory()` re-aggregates the counters from the events table (single round-trip), classifies, UPSERTs the snapshot. `listConceptMemory({userId, lectureJobId})` returns the per-concept rows ordered by mastery ascending — Phase D's recap surface will consume this directly. All writes use the service-role admin client; the heuristic stays the single source of truth. |
+| `app/api/learning/events/route.ts` | new — POST handler. Zod-validates `{lectureJobId, conceptId?, conceptName?, eventType, metadata?}`. Auth via `createClient()` + `getUser()`. Confirms the lecture is `completed` and (when `conceptId` is set) that the slug actually exists in `lecture_jobs.metadata.concept_index`. Trust boundary: past this validation the heuristic engine runs unconditionally. Returns `{ok: true}` on success. |
+| `app/api/learning/memory/[lectureId]/route.ts` | new — GET handler. Lists per-concept memory for the calling user, ordered lowest-mastery-first. Response shape includes a `summary` block: `{total, struggling, mastered, engaged, fresh}`. RLS scopes the read to the owner. |
+| `app/api/lectures/[id]/query/route.ts` | edited — fire-and-forget `recordLearningEvent({eventType: 'concept_queried'})` after every successful concept match. Lecture-level recap fallbacks (matchedConcept = null) deliberately do NOT record events — a generic recap shouldn't pollute mastery scoring. |
+| `app/lectures/[id]/learn/LearnView.tsx` | edited — replay chip click now records `replay_clicked` in addition to seeking. New `recordReplay` callback at `<LearnView />` root closes over `lectureJobId`, threaded through `<AskExplanationPanel /> → <QueryHistoryList /> → <ResponseCard /> → <ReplayTimelineChips />`. Network call is fire-and-forget — failures swallowed so the seek never blocks. |
+| `scripts/verification/sprint9e-memory-offline-smoke.ts` | new — pure deterministic smoke. 23 assertions across the rule matrix: every status transition (fresh→engaged→struggling→mastered) and the score boundaries [0.05, 0.75]. The user-given canonical example (`replay>2 ∧ query>2 ∧ quiz_fail≥1 → struggling`) verified explicitly. Determinism re-tested via repeated calls. Zero network. |
+| `scripts/verification/sprint9e-memory-http-smoke.ts` | new — full HTTP E2E. Mints smoke user, signs in, INSERTs a synthetic completed `lecture_jobs` row with embedded `concept_index`, fires 6 events for Resistance + 1 for Voltage via `POST /api/learning/events`, GETs `/api/learning/memory/[lectureId]` twice, asserts both snapshots match the heuristic. Negative cases (invalid eventType, unknown conceptId, missing lectureJobId, invalid UUID) all return correct status codes. Cleanup via single `lecture_jobs DELETE` (FK CASCADE handles events + memory). |
+
+### Live evidence (offline smoke):
+
+```
+=== Sprint 9-E — memory engine offline smoke ===
+  ✔ zero events → fresh (score 0.5)
+  ✔ 1 pass + 0 fail + ≤1 replay → mastered (0.75)
+  ✔ replay=3 → struggling (0.40)
+  ✔ query=3 → struggling
+  ✔ quiz_fail=1 → struggling (0.25)
+  ✔ replay=3 + query=3 + 1 fail → struggling (canonical example)
+  ✔ 1 pass + 1 fail → struggling (any fail is a struggle signal)
+  ✔ many fails worst-case score = 0.05 (clamps ≥ 0)
+  ✔ classifyStruggle is pure
+=== Sprint 9-E OFFLINE SMOKE PASSED ===  passed: 23  failed: 0
+```
+
+### Live evidence (HTTP smoke):
+
+```
+=== Sprint 9-E — memory HTTP smoke ===
+smoke user: sprint9e-smoke@prepx.test e04f5389-7dc0-494e-9cf7-5a0c419bec3a
+synthetic lecture_jobs row: 67e6d2a7-ca20-4527-9fd6-a8a94c913b19
+
+--- POST /api/learning/events × 6 (Resistance) ---  all 200
+--- GET /api/learning/memory/[lectureId] ---
+  Resistance: replay 3, query 3, quiz_fail 0  → status=struggling, score=0.30
+  summary.struggling = 1
+--- POST quiz_passed for Voltage ---
+  Voltage: quiz_pass 1                          → status=mastered,    score=0.75
+  summary.mastered = 1
+--- negative cases ---
+  invalid eventType → 400
+  unknown conceptId for this lecture → 422
+  missing lectureJobId → 400
+  GET memory invalid UUID → 400
+
+=== Sprint 9-E HTTP SMOKE PASSED ===  passed: 27  failed: 0
+```
+
+### Run commands:
+
+```
+# offline (no deps, deterministic, suitable for CI)
+npx tsx scripts/verification/sprint9e-memory-offline-smoke.ts
+
+# HTTP E2E (dev server + .env.local + migration 080 applied)
+NEXT_PUBLIC_BASE_URL=http://localhost:3000 \
+  npx dotenv-cli -e .env.local -- \
+  npx tsx scripts/verification/sprint9e-memory-http-smoke.ts
+```
+
+### What changed in shared code:
+
+- One new migration (080). Applied to remote Supabase.
+- One file edit in `app/api/lectures/[id]/query/route.ts` (added 1 import + 9-line fire-and-forget block — does NOT change response shape).
+- One file edit in `app/lectures/[id]/learn/LearnView.tsx` (added `recordReplay` callback at root, threaded through 4 components — does NOT change DOM output, only adds a network call on chip click).
+- Everything else is net-new under `lib/learning/memory.ts`, `app/api/learning/`, `scripts/verification/sprint9e-*`.
+
+### What this delivers (per directive's rubric):
+
+✅ **Phase A — event collection.** `replay_clicked`, `concept_queried`, `quiz_failed`, `quiz_passed`, `note_opened`, `recap_requested` all defined; first two wired into the existing query route + UI; the rest ready to be wired by Phase D's recap UI / quiz integration.
+✅ **Phase B — deterministic struggle detection.** Heuristics-first per directive ("DO NOT start with ML models"). `classifyStruggle()` is a pure function — same inputs always produce same outputs.
+✅ **Phase C — learning profile.** `user_concept_memory` is the per-student-per-lecture-per-concept knowledge graph. Mastery score, status, last_event_at — every field a deterministic projection of the events stream.
+
+### Honest gaps:
+
+- **`recap_requested` event** is defined in the enum but no UI surfaces it yet. That's Phase D scope (the "Your weak concepts today" recap card).
+- **`quiz_failed` / `quiz_passed`** are defined and tested via direct POST, but the lecture's quiz UI (when it ships) will need to fire them. The endpoint and heuristic are ready.
+- **`note_opened`** ditto — defined, untested in HTTP smoke, will be wired when the notes panel lands.
+- **No streaming / no live UI updates.** The recap UI in Phase D will fetch `/api/learning/memory/[lectureId]` on mount; for now the memory snapshot is read-on-demand. Live updates aren't needed until classroom-mode is on the roadmap.
+- **Counters are recomputed in full on every event** (re-aggregates the entire concept's history). Fine at our scale; if a student fires hundreds of events on one concept, switch to incremental delta. Day-2.
+- **No telemetry on heuristic accuracy.** Day-2: log the `(counters_before, status, mastery_score)` tuple alongside outcome (e.g. did the student eventually pass the quiz?) so we can validate the heuristic against ground truth before swapping it for ML.
+- **Concept route (`/api/concepts/[id]/query`) does NOT yet record events.** Lecture-side parity is shipped; concept-side mirroring is intentionally deferred — same reason mirrored UI was deferred (capability expansion > surface duplication).
+- **`concept_queried` only fires when `result.matchedConcept` is non-null.** Recap-fallback queries don't pollute the score. Correct behavior, but undocumented in the response — frontend telemetry won't see those.
+- **Pre-existing TS error in `lib/lecture/narration.ts:151`** — still flagged, untouched.
+
+### Why this matters strategically:
+
+The platform now remembers each student. Every replay, query, and quiz outcome compounds into a per-concept mastery score. Phase D's recap card ("Your weak concepts today") is now a 50-line component that consumes `/api/learning/memory/[lectureId]` and renders the lowest-mastery rows — no new intelligence required. Phase E's adaptive querying ("the system knows you struggled with current") is now a single JOIN at query-time. The expensive part — *deterministic semantic memory infrastructure* — is shipped.
+
+---
+
 ## Status legend
 
 - **scaffold** — code exists, untested

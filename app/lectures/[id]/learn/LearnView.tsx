@@ -67,6 +67,27 @@ export function LearnView(props: {
     void v.play().catch(() => { /* autoplay may be blocked */ });
   }, [durationSec]);
 
+  // Sprint 9-E: fire-and-forget replay_clicked event. Records the segment
+  // range + matched concept so the heuristic can flag struggle. Failures
+  // are silently swallowed — the seek must never block on telemetry.
+  const recordReplay = useCallback(
+    (seg: ReplaySegment, matched: MatchedConcept | null) => {
+      if (!matched) return;
+      void fetch('/api/learning/events', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          lectureJobId,
+          conceptId: matched.id,
+          conceptName: matched.name,
+          eventType: 'replay_clicked',
+          metadata: { segmentStart: seg.start, segmentEnd: seg.end },
+        }),
+      }).catch(() => { /* swallow */ });
+    },
+    [lectureJobId],
+  );
+
   return (
     <div className="max-w-6xl mx-auto px-4 py-6 space-y-4">
       <header className="space-y-1">
@@ -82,7 +103,11 @@ export function LearnView(props: {
           <LecturePlayer ref={videoRef} videoUrl={videoUrl} />
         </div>
         <div className="lg:col-span-1">
-          <AskExplanationPanel lectureJobId={lectureJobId} onSeek={seekTo} />
+          <AskExplanationPanel
+            lectureJobId={lectureJobId}
+            onSeek={seekTo}
+            onReplay={recordReplay}
+          />
         </div>
       </div>
     </div>
@@ -112,9 +137,11 @@ const LecturePlayer = forwardRef<HTMLVideoElement, { videoUrl: string }>(
 function AskExplanationPanel({
   lectureJobId,
   onSeek,
+  onReplay,
 }: {
   lectureJobId: string;
   onSeek: (sec: number) => void;
+  onReplay: (seg: ReplaySegment, matched: MatchedConcept | null) => void;
 }) {
   const [q, setQ] = useState('');
   const [busy, setBusy] = useState(false);
@@ -182,7 +209,7 @@ function AskExplanationPanel({
         </div>
       )}
 
-      <QueryHistoryList items={history} onSeek={onSeek} />
+      <QueryHistoryList items={history} onSeek={onSeek} onReplay={onReplay} />
     </div>
   );
 }
@@ -192,9 +219,11 @@ function AskExplanationPanel({
 function QueryHistoryList({
   items,
   onSeek,
+  onReplay,
 }: {
   items: QueryHistoryItem[];
   onSeek: (sec: number) => void;
+  onReplay: (seg: ReplaySegment, matched: MatchedConcept | null) => void;
 }) {
   if (items.length === 0) {
     return (
@@ -204,7 +233,7 @@ function QueryHistoryList({
   return (
     <div className="flex-1 overflow-y-auto space-y-3 pr-1">
       {items.map((it) => (
-        <ResponseCard key={it.ts} item={it} onSeek={onSeek} />
+        <ResponseCard key={it.ts} item={it} onSeek={onSeek} onReplay={onReplay} />
       ))}
     </div>
   );
@@ -215,9 +244,11 @@ function QueryHistoryList({
 function ResponseCard({
   item,
   onSeek,
+  onReplay,
 }: {
   item: QueryHistoryItem;
   onSeek: (sec: number) => void;
+  onReplay: (seg: ReplaySegment, matched: MatchedConcept | null) => void;
 }) {
   const r = item.response;
   return (
@@ -251,7 +282,11 @@ function ResponseCard({
         </div>
       )}
 
-      <ReplayTimelineChips segments={r.replaySegments} onSeek={onSeek} />
+      <ReplayTimelineChips
+        segments={r.replaySegments}
+        onSeek={onSeek}
+        onReplay={(seg) => onReplay(seg, r.matchedConcept)}
+      />
 
       {r.formulas.length > 0 && <FormulaCard formulas={r.formulas} />}
 
@@ -265,9 +300,11 @@ function ResponseCard({
 function ReplayTimelineChips({
   segments,
   onSeek,
+  onReplay,
 }: {
   segments: ReplaySegment[];
   onSeek: (sec: number) => void;
+  onReplay: (seg: ReplaySegment) => void;
 }) {
   if (segments.length === 0) return null;
   return (
@@ -276,7 +313,7 @@ function ReplayTimelineChips({
         <button
           key={`${seg.start}-${seg.end}-${i}`}
           type="button"
-          onClick={() => onSeek(seg.start)}
+          onClick={() => { onReplay(seg); onSeek(seg.start); }}
           className="px-2 py-1 rounded-md bg-slate-800 hover:bg-slate-700 border border-slate-700 text-xs text-slate-200 inline-flex items-center gap-1"
           title={`Replay ${formatTime(seg.start)} – ${formatTime(seg.end)}`}
         >

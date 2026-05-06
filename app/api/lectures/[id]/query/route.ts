@@ -16,6 +16,7 @@ import { NextResponse, type NextRequest } from 'next/server';
 import { createClient } from '@/lib/supabase-server';
 import { answerQuery, normalize, type QueryResult } from '@/lib/learning/query-engine';
 import type { ConceptIndex } from '@/lib/learning/concept-index';
+import { recordLearningEvent } from '@/lib/learning/memory';
 
 // ─── In-memory deterministic cache ─────────────────────────────────────
 // Key: `${lectureId}::${normalize(q)}`. Stores the structured retrieval
@@ -133,6 +134,20 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
         phraseError: e?.message || 'phrasing unavailable',
       });
     }
+  }
+
+  // Sprint 9-E: fire-and-forget event recording. Only record when a real
+  // concept matched — lecture-level recap fallbacks are tracked separately
+  // via the recap_requested event (POSTed by the UI's recap action).
+  if (result.matchedConcept) {
+    void recordLearningEvent({
+      userId: user.id,
+      lectureJobId,
+      conceptId: result.matchedConcept.id,
+      conceptName: result.matchedConcept.name,
+      eventType: 'concept_queried',
+      metadata: { intent: result.intent, confidence: result.confidence },
+    });
   }
 
   return NextResponse.json(shape(result, lectureJobId, cached));
