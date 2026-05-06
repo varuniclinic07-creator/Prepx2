@@ -6,6 +6,10 @@ node_modules/
 test-results/
 tsconfig.tsbuildinfo
 
+# Reproducible render artifacts (lecture/concept bake outputs, dev/worker logs)
+outputs/
+tmp/
+
 # Secret environments
 .env.local
 .env.*.local

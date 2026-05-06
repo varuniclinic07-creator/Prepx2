@@ -85,6 +85,49 @@ async function pushStage(
   await sb.from('concept_jobs').update(updates).eq('id', jobId);
 }
 
+// Sprint 9-C Phase B — append a nested LectureStage event under the parent
+// 'lecture-generating' concept stage. We do NOT bump concept_jobs.status here
+// (it stays at 'lecture-generating' for the whole sub-pipeline) but we DO
+// interpolate progress_percent between the parent's 50% (planning done) and
+// 85% (lecture-generating done) so UIs see a moving bar instead of a freeze.
+const LECTURE_SUB_PROGRESS: Record<string, number> = {
+  'pedagogy':       54,
+  'shot-planning':  57,
+  'ltx-render':     65,
+  'manim-render':   70,
+  'narration':      74,
+  'subtitles':      77,
+  'composition':    79,
+  'notes':          81,
+  'quiz':           83,
+  'finalizing':     84,
+};
+
+async function pushLectureSubStage(
+  jobId: string,
+  evt: { stage: string; rawStageName: string; status: 'started' | 'completed' | 'cached' | 'failed'; elapsedMs?: number }
+) {
+  const sb = getAdminClient();
+  const entry = {
+    parent_stage: 'lecture-generating' as ConceptStage,
+    sub_stage: evt.stage,
+    raw: evt.rawStageName,
+    status: evt.status,
+    ts: new Date().toISOString(),
+    ...(evt.elapsedMs !== undefined ? { elapsed_ms: evt.elapsedMs } : {}),
+  };
+  const { data: row } = await sb.from('concept_jobs').select('stage_log').eq('id', jobId).single();
+  const log = Array.isArray(row?.stage_log) ? row!.stage_log : [];
+  log.push(entry);
+  // Only nudge progress on 'completed' events so we don't oscillate.
+  const updates: Record<string, any> = { stage_log: log };
+  if (evt.status === 'completed' || evt.status === 'cached') {
+    const pct = LECTURE_SUB_PROGRESS[evt.stage];
+    if (pct) updates.progress_percent = pct;
+  }
+  await sb.from('concept_jobs').update(updates).eq('id', jobId);
+}
+
 async function fetchSourceBuffer(storagePath: string): Promise<Buffer> {
   const sb = getAdminClient();
   const { data, error } = await sb.storage.from(CONCEPTS_MVP_BUCKET).download(storagePath);
@@ -179,7 +222,15 @@ export async function processConceptGenerateJob(
     outputDir: conceptOutputDir,
     planJson: plan,
     skipLtx: data.skipLtx,
-    onStageProgress: async () => { /* sub-stage progress not surfaced — concept job stays at 85% */ },
+    onStageProgress: async (e) => {
+      // Sprint 9-C Phase B — forward LectureStage events into concept_jobs.stage_log
+      // so concept jobs no longer sit at 85% through the entire bake.
+      try {
+        await pushLectureSubStage(jobId, e);
+      } catch {
+        // best-effort; never block the orchestrator on logging
+      }
+    },
   });
   await pushStage(jobId, 'lecture-generating', 'completed', Date.now() - t5);
 
