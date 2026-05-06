@@ -114,6 +114,72 @@ export interface InterviewJobPayload {
   phase: 'panel-question' | 'debrief-render';
 }
 
+// Sprint 9-A — async lecture generation. Wraps the canonical MVP orchestrator
+// (lib/lecture/orchestrator.ts) so a long-running pipeline (10-15 min full LTX
+// bake) runs out-of-band of the HTTP request.
+export type LectureStage =
+  | 'queued'
+  | 'pedagogy'
+  | 'shot-planning'
+  | 'ltx-render'
+  | 'manim-render'
+  | 'narration'
+  | 'subtitles'
+  | 'composition'
+  | 'notes'
+  | 'quiz'
+  | 'finalizing'
+  | 'completed'
+  | 'failed';
+
+export interface LectureGenerateJobPayload {
+  taskId: string;
+  jobId: string;                // lecture_jobs.id
+  userId: string;
+  topic: string;                // canonical slug or free-text title
+  durationSeconds?: number;     // target lecture length, default 35
+  style?: 'classroom' | 'concept-short';
+  difficulty?: 'beginner' | 'intermediate' | 'advanced';
+  language?: 'en' | 'hi' | 'hinglish';
+  outputFormat?: 'mp4-1280x720';
+  skipLtx?: boolean;            // bypass live ComfyUI, use placeholder shots
+  // When provided, the orchestrator skips its hardcoded LECTURE_PLAN and bakes
+  // this plan instead. Used by Sprint 9-B (Product B) to feed simplified
+  // teacher-style scenes derived from a parsed PDF/image/DOCX.
+  planJson?: unknown;
+}
+
+// Sprint 9-B — Product B "Explain This" / AI Doubt Solver. Wraps a parsed
+// document (PDF/DOCX/PPT/image/text) into a 60-120 s cinematic explainer +
+// notes + recap + 5-Q quiz. Internally calls the lecture orchestrator.
+export type ConceptStage =
+  | 'queued'
+  | 'parsing'
+  | 'extracting'
+  | 'simplifying'
+  | 'planning'
+  | 'lecture-generating'
+  | 'finalizing'
+  | 'completed'
+  | 'failed';
+
+export interface ConceptGenerateJobPayload {
+  taskId: string;
+  jobId: string;                  // concept_jobs.id
+  userId: string;
+  conceptId: string;              // cpt_{slug}_{shortHash}_{epochMs}
+  documentType: 'pdf' | 'docx' | 'pptx' | 'image' | 'text';
+  sourceStoragePath?: string;     // concepts-mvp/{userId}/sources/{conceptId}.{ext} — empty when documentType='text'
+  rawText?: string;               // present when documentType='text'
+  documentName?: string;
+  style?: 'classroom' | 'concept-short';
+  difficulty?: 'beginner' | 'intermediate' | 'advanced';
+  language?: 'en' | 'hi' | 'hinglish';
+  durationSeconds?: number;       // 60-120, default 90
+  outputFormat?: 'mp4-1280x720';
+  skipLtx?: boolean;
+}
+
 export type QueueName =
   | 'study-jobs'
   | 'research-jobs'
@@ -129,6 +195,8 @@ export type QueueName =
   | 'shorts-jobs'
   | 'ca-video-jobs'
   | 'interview-jobs'
+  | 'lecture-generate'
+  | 'concept-generate'
   | 'dead-letter';
 
 export const ALL_QUEUE_NAMES: QueueName[] = [
@@ -146,6 +214,8 @@ export const ALL_QUEUE_NAMES: QueueName[] = [
   'shorts-jobs',
   'ca-video-jobs',
   'interview-jobs',
+  'lecture-generate',
+  'concept-generate',
   'dead-letter',
 ];
 
@@ -165,21 +235,25 @@ export type AgentType =
   | 'mindmap'
   | 'shorts'
   | 'ca_video'
-  | 'interview';
+  | 'interview'
+  | 'lecture_generate'
+  | 'concept_generate';
 
 export const QUEUE_FOR_AGENT: Record<AgentType, QueueName> = {
-  study:    'study-jobs',
-  research: 'research-jobs',
-  content:  'content-jobs',
-  script:   'script-jobs',
-  render:   'render-jobs',
-  coach:    'coach-jobs',
-  refine:   'refine-jobs',
-  bundle:   'bundle-jobs',
-  mnemonic: 'mnemonic-jobs',
-  imagine:  'imagine-jobs',
-  mindmap:  'mindmap-jobs',
-  shorts:   'shorts-jobs',
-  ca_video: 'ca-video-jobs',
-  interview:'interview-jobs',
+  study:           'study-jobs',
+  research:        'research-jobs',
+  content:         'content-jobs',
+  script:          'script-jobs',
+  render:          'render-jobs',
+  coach:           'coach-jobs',
+  refine:          'refine-jobs',
+  bundle:          'bundle-jobs',
+  mnemonic:        'mnemonic-jobs',
+  imagine:         'imagine-jobs',
+  mindmap:         'mindmap-jobs',
+  shorts:          'shorts-jobs',
+  ca_video:        'ca-video-jobs',
+  interview:       'interview-jobs',
+  lecture_generate:'lecture-generate',
+  concept_generate:'concept-generate',
 };

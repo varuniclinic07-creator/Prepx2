@@ -43,6 +43,8 @@ import { processMindmapJob } from '../lib/mindmap/processors';
 import { processInterviewJob } from '../lib/interview/processors';
 import { processShortsJob } from '../lib/shorts/processors';
 import { processCaVideoJob } from '../lib/ca-video/processors';
+import { processLectureGenerateJob } from '../lib/lecture/processors';
+import { processConceptGenerateJob } from '../lib/concept/processors';
 import { runBakeSweep } from '../lib/video/bake-bridge';
 import { runRenderRetrySweep } from '../lib/video/render-retry-sweep';
 
@@ -270,6 +272,8 @@ const PROCESSORS: Record<QueueName, (job: Job, taskId: string) => Promise<Record
   'shorts-jobs':    processShortsJob,
   'ca-video-jobs':  processCaVideoJob,
   'interview-jobs': processInterviewJob,
+  'lecture-generate': processLectureGenerateJob,
+  'concept-generate': processConceptGenerateJob,
   'dead-letter':    async (_job, taskId) => ({ taskId, note: 'observed by dead-letter consumer' }),
 };
 
@@ -288,6 +292,8 @@ const AGENT_TYPE_FOR_QUEUE: Record<QueueName, string> = {
   'shorts-jobs':    'shorts',
   'ca-video-jobs':  'ca_video',
   'interview-jobs': 'interview',
+  'lecture-generate': 'lecture_generate',
+  'concept-generate': 'concept_generate',
   'dead-letter':    'dead_letter',
 };
 

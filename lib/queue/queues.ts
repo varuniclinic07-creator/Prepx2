@@ -46,6 +46,13 @@ export const QUEUE_WORKER_CONFIG: Record<QueueName, QueueWorkerConfig> = {
   // GPU-bound — render queues are throttled hardest; ComfyUI is single-tenant.
   'render-jobs':    { concurrency: 1, limiter: { max: 2, duration: 60_000 } },
   'ca-video-jobs':  { concurrency: 1, limiter: { max: 2, duration: 60_000 } },
+  // Long-running orchestrator (10-15 min/job) — keep strictly serial. ComfyUI
+  // contention with render-jobs is real; the limiter prevents starvation.
+  'lecture-generate': { concurrency: 1, limiter: { max: 2, duration: 60_000 } },
+  // Sprint 9-B Product B — concept generation. Each job ends by handing off to
+  // the lecture pipeline (which is itself serial), so there's no benefit to
+  // exceeding 1 here.
+  'concept-generate': { concurrency: 1, limiter: { max: 2, duration: 60_000 } },
 
   // Observability-only — DLQ consumer just records the event.
   'dead-letter':    { concurrency: 1 },
