@@ -96,6 +96,20 @@ export async function findCachedLecture(cacheHash: string): Promise<Record<strin
   return row.manifest.signedUrls || null;
 }
 
+// Sprint 9-C slice-2 — renderer artifact provenance. ffmpeg is always
+// present (canonical); remotion is opt-in via the --remotion flag in the
+// orchestrator script. Both renderers consume the same timeline.json +
+// metadata.json + notes.json + quiz.json — the difference is composition
+// strategy, not pedagogy.
+export interface RendererArtifact {
+  path: string;                    // signed URL OR storage path, depending on caller
+  bytes: number;
+  render_time_ms?: number;         // remotion only
+  frames_rendered?: number;        // remotion only
+  fps?: number;                    // remotion only
+  composition?: string;            // remotion only
+}
+
 export interface LectureManifest {
   lectureId: string;
   topic: string;
@@ -103,7 +117,8 @@ export interface LectureManifest {
   generatedAt: string;
   storagePrefix: string;
   signedUrls: {
-    video: string;
+    video: string;                 // canonical ffmpeg lecture.mp4
+    videoRemotion?: string;        // optional Remotion lecture-remotion.mp4
     notesJson: string;
     notesPdf: string;
     quiz: string;
@@ -112,6 +127,12 @@ export interface LectureManifest {
     manifest: string;
     narrationMp3?: string;
     subtitles?: string;
+  };
+  // Per-renderer provenance. ffmpeg is always present; remotion only when
+  // the slice-2 parallel render produced an artifact.
+  renderers: {
+    ffmpeg: RendererArtifact;
+    remotion?: RendererArtifact;
   };
   expiresAt: string;
 }
@@ -122,9 +143,20 @@ export function buildManifest(args: {
   durationSeconds: number;
   storagePrefix: string;
   uploads: Record<string, LectureUploadResult>;
+  // Optional Remotion render metrics (passed through from the orchestrator
+  // metadata.json `renderers.remotion` block when --remotion was set).
+  remotionMetrics?: {
+    render_time_ms: number;
+    frames_rendered: number;
+    fps: number;
+    composition?: string;
+  };
 }): LectureManifest {
   const u = args.uploads;
   const pick = (k: string) => u[k]?.signedUrl;
+  const ffmpegEntry = u['lecture.mp4'];
+  const remotionEntry = u['lecture-remotion.mp4'];
+
   return {
     lectureId: args.lectureId,
     topic: args.topic,
@@ -133,6 +165,7 @@ export function buildManifest(args: {
     storagePrefix: args.storagePrefix,
     signedUrls: {
       video: pick('lecture.mp4')!,
+      ...(remotionEntry ? { videoRemotion: pick('lecture-remotion.mp4')! } : {}),
       notesJson: pick('notes.json')!,
       notesPdf: pick('notes.pdf')!,
       quiz: pick('quiz.json')!,
@@ -141,6 +174,24 @@ export function buildManifest(args: {
       manifest: pick('manifest.json')!,
       ...(pick('narration.mp3') ? { narrationMp3: pick('narration.mp3') } : {}),
       ...(pick('subtitles.srt') ? { subtitles: pick('subtitles.srt') } : {}),
+    },
+    renderers: {
+      ffmpeg: {
+        path: ffmpegEntry?.storagePath || '',
+        bytes: ffmpegEntry?.bytes || 0,
+      },
+      ...(remotionEntry ? {
+        remotion: {
+          path: remotionEntry.storagePath,
+          bytes: remotionEntry.bytes,
+          ...(args.remotionMetrics ? {
+            render_time_ms: args.remotionMetrics.render_time_ms,
+            frames_rendered: args.remotionMetrics.frames_rendered,
+            fps: args.remotionMetrics.fps,
+            composition: args.remotionMetrics.composition || 'EducationalLecture',
+          } : {}),
+        },
+      } : {}),
     },
     expiresAt: Object.values(u)[0]?.expiresAt || new Date(Date.now() + 86_400_000).toISOString(),
   };

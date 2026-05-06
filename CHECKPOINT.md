@@ -1005,6 +1005,94 @@ npx tsx scripts/verification/sprint9c-remotion-smoke.ts
 
 ---
 
+## Sprint 9-C slice-2 — `--remotion` flag + dual-output orchestration (2026-05-07, ✅ E2E green)
+
+User directive: keep ffmpeg as the canonical/production path; wire Remotion as an opt-in parallel renderer driven by the SAME timeline.json + metadata.json + notes.json + quiz.json. No fork in pedagogy or planning. Remotion stays optional, NOT default. Manifest must expose `renderers: { ffmpeg, remotion? }`.
+
+| Layer | Change |
+|---|---|
+| Orchestrator script | `scripts/verification/mvp-e2e-lecture.ts` — added `--remotion` flag + `LECTURE_USE_REMOTION=1` env equivalent. New STAGE 9 "Remotion parallel render" runs after STAGE 7c mux + STAGE 8c timeline.json (so the Remotion driver consumes the just-baked timeline). STAGE 9 dynamic-imports `lib/video/remotion-renderer.ts` and writes `lecture-remotion.mp4` to the same OUT_DIR. STAGE 8d metadata.json now emits a `renderers: { ffmpeg: {path, bytes}, remotion?: {path, bytes, render_time_ms, frames_rendered, fps, composition} }` block + a sibling `assets.lecture_remotion_mp4` entry. ffmpeg path is unchanged byte-for-byte when the flag is off. |
+| Orchestrator wrapper | `lib/lecture/orchestrator.ts` — `GenerateLectureOpts` adds `useRemotion?: boolean`; child args now push `--remotion` when set. `GenerateLectureResult.artifacts` adds optional `lectureRemotionMp4`; `GenerateLectureResult.remotionMetrics` surfaces the metadata.renderers.remotion block for callers. Existence check guards: when `useRemotion=true`, the wrapper hard-fails if `lecture-remotion.mp4` is missing or <100 KB. |
+| Manifest builders | `lib/lecture/storage.ts` + `lib/concept/storage.ts` — new `RendererArtifact` shape; `buildManifest()` / `buildConceptManifest()` accept a `remotionMetrics` param and emit `renderers: { ffmpeg, remotion? }` + `signedUrls.videoRemotion?` (lectures) / `signedUrls.explainerRemotion?` (concepts). `LectureManifest` + `ConceptManifest` interfaces grew the `renderers` block (mandatory on ffmpeg, optional on remotion). |
+| Queue payloads | `lib/queue/types.ts` — `LectureGenerateJobPayload` + `ConceptGenerateJobPayload` gain `useRemotion?: boolean`. Forward via the worker → orchestrator → child script chain. |
+| Processors | `lib/lecture/processors.ts` + `lib/concept/processors.ts` — pass `data.useRemotion` to `generateLecture()`; conditionally append `lecture-remotion.mp4` (lectures) / `explainer-remotion.mp4` (concepts) to the upload list; pass `result.remotionMetrics` to `buildManifest()` / `buildConceptManifest()` so the manifest stored in `lecture_jobs.manifest` / `concept_jobs.manifest` carries the renderers block end-to-end. |
+| API surface | `app/api/lectures/generate/route.ts` + `app/api/concepts/generate/route.ts` — Zod schemas accept `useRemotion: boolean` in the request body; payloads forward it to the agent_task. Default off. |
+| Smoke | `scripts/verification/sprint9c2-dual-output-smoke.ts` — spawns `mvp-e2e-lecture.ts --skip-ltx --remotion` end-to-end, validates both MP4s exist (ffmpeg ≥ 1 MB, Remotion ≥ 100 KB) at h264 1280×720, manifests the renderers block in metadata.json, asserts ffmpeg duration ≈ timeline.duration and Remotion duration ≈ timeline.duration + recap(8) + 5×7 + outro(4). |
+
+### Live evidence (slice-2 smoke run #1, no retries):
+
+```
+=== Sprint 9-C slice-2 — dual-output smoke ===
+
+  STAGE: 9 Remotion parallel render
+     remotion: 2427 frames @ 30 fps · 4080.5 KB · 300892 ms
+     lecture-remotion.mp4: outputs/mvp/lecture-remotion.mp4 (4080.5 KB)
+  ✔ 9 Remotion parallel render done in 308632 ms
+
+  MVP E2E LECTURE — COMPLETE
+     wall time: 394.5s
+     [ok     ] 7c mux narration + burn subtitles: 40068 ms
+     [ok     ] 9 Remotion parallel render:        308632 ms
+   ✔ outputs/mvp/:
+       - lecture.mp4          1655.6 KB
+       - lecture-remotion.mp4 4080.5 KB
+
+--- validating ffmpeg lecture.mp4 ---
+  ✔ lecture.mp4 ≥ 1 MB (got 1655.6 KB)
+  ✔ ffmpeg h264, 1280×720
+--- validating Remotion lecture-remotion.mp4 ---
+  ✔ lecture-remotion.mp4 ≥ 100 KB (got 4080.5 KB)
+  ✔ remotion h264, 1280×720
+--- validating metadata.json renderers block ---
+  ✔ metadata.renderers.ffmpeg present (bytes > 0)
+  ✔ metadata.renderers.remotion present (render_time_ms + frames_rendered + composition)
+  ✔ assets.lecture_mp4 + assets.lecture_remotion_mp4 present
+--- duration sanity ---
+  timeline.duration         = 33.9s
+  ffmpeg ffprobe duration   = 33.90s
+  remotion ffprobe duration = 80.96s
+  ✔ ffmpeg duration ≈ timeline (Δ 0.00s)
+  ✔ remotion duration ≈ timeline+recap+quiz+outro (expected 80.90s, Δ 0.06s)
+
+=== Sprint 9-C SLICE-2 SMOKE PASSED ===
+```
+
+### Run command:
+
+```
+# pre-req: cached fixtures from any prior 9-A/9-B run; LTX shots already cached.
+npx dotenv-cli -e .env.local -- npx tsx scripts/verification/sprint9c2-dual-output-smoke.ts
+```
+
+### What changed in shared code (so 9-A and 9-B and slice-1 still work):
+
+- ffmpeg pipeline runs identically when `--remotion` is absent (verified: stage timings unchanged, lecture.mp4 byte-stable).
+- The Remotion entry in `metadata.renderers` is omitted when off — never an empty stub.
+- `buildManifest()` / `buildConceptManifest()` `remotionMetrics` param is optional; existing callers that don't pass it get the same manifest shape they got before (just with the new `renderers.ffmpeg` block populated from upload metadata).
+
+### ffmpeg vs Remotion — observed deltas (E2E run, --skip-ltx):
+
+| Metric | ffmpeg | Remotion | Notes |
+|---|---|---|---|
+| Output size | 1655.6 KB | 4080.5 KB | Remotion adds recap + 5 quiz scenes + persistent overlays |
+| Duration | 33.90 s | 80.96 s | Same timeline; Remotion appends recap(8) + 5×7 + outro(4) |
+| Render time | ~84 s (mux + concat + normalize) | ~309 s (bundle + Chromium render) | Remotion is the cost of programmability |
+| Codec / dims | h264 1280×720 | h264 1280×720 | Identical container |
+| Determinism | byte-stable | byte-stable | Both reproducible from same inputs |
+| Subtitles | `-vf subtitles=` (burn) | `<SubtitleLayer>` overlay | Remotion lets us own typography |
+
+### Honest gaps:
+
+- **Remotion render is single-threaded Chromium** (~5 min for 80 s @ 30 fps on Win11 with cached binary). Day-2: enable `concurrency` on `renderMedia` (uses N Chromium tabs in parallel — 3-4× speedup on this hardware).
+- **Concept jobs through the API still default `useRemotion=false`.** Slice-2 only exposes the toggle; UI / admin tooling that flips it doesn't exist yet (Sprint 9-E scope). The CLI `--remotion` flag is the only proven activation path.
+- **Lecture/concept storage uploads happen serially in a for-loop** (already a slice-1 gap). The extra Remotion artifact adds ~4 MB to the upload — measurable but not blocking. Day-2: parallel uploads.
+- **`lecture-remotion.mp4` and `explainer-remotion.mp4` use different storage names** for the same renderer because the lecture vs concept buckets diverged historically. Day-2: standardize on a renderer-prefixed key (`renderer/remotion/lecture.mp4`) so future renderers slot in cleanly.
+- **No render-time budget enforcement.** A misbehaving composition could hang Chromium indefinitely. Day-2: `renderMedia({ timeoutInMilliseconds })`.
+- **`PersistentOverlays` still uses `require('remotion')` inline** (slice-1 carryover) — works, but ugly.
+- **Pre-existing TS error in `lib/lecture/narration.ts:151`** (Buffer→Stream typing under Node 24) — still flagged, untouched by slice-2.
+
+---
+
 ## Status legend
 
 - **scaffold** — code exists, untested

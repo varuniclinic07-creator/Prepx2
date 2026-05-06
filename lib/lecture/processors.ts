@@ -128,6 +128,7 @@ export async function processLectureGenerateJob(
     difficulty: data.difficulty,
     language: data.language,
     skipLtx: data.skipLtx,
+    useRemotion: data.useRemotion,
     onStageProgress: async (e) => {
       try {
         await pushStageLog(jobId, e.stage, e.status, e.elapsedMs);
@@ -150,6 +151,14 @@ export async function processLectureGenerateJob(
     { filePath: result.artifacts.narrationMp3,    storageName: 'narration.mp3', contentType: 'audio/mpeg' },
     { filePath: result.artifacts.subtitlesSrt,    storageName: 'subtitles.srt', contentType: 'application/x-subrip' },
   ];
+  // Sprint 9-C slice-2 — opt-in Remotion parallel artifact.
+  if (result.artifacts.lectureRemotionMp4) {
+    uploads.push({
+      filePath: result.artifacts.lectureRemotionMp4,
+      storageName: 'lecture-remotion.mp4',
+      contentType: 'video/mp4',
+    });
+  }
 
   // First pass: upload the 8 main assets.
   const uploaded = await uploadLectureBundle(userId, lectureId, uploads);
@@ -162,6 +171,7 @@ export async function processLectureGenerateJob(
     durationSeconds: result.durationSeconds,
     storagePrefix,
     uploads: { ...uploaded, 'manifest.json': { storagePath: '', signedUrl: '', expiresAt: '', bytes: 0 } },
+    remotionMetrics: result.remotionMetrics,
   });
   const manifestLocal = path.join(result.outputDir, 'manifest.json');
   writeFileSync(manifestLocal, JSON.stringify(manifestStub, null, 2), 'utf8');
@@ -176,6 +186,7 @@ export async function processLectureGenerateJob(
     durationSeconds: result.durationSeconds,
     storagePrefix,
     uploads: uploaded,
+    remotionMetrics: result.remotionMetrics,
   });
 
   await sb.from('lecture_jobs').update({

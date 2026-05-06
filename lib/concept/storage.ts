@@ -88,6 +88,18 @@ export async function uploadConceptBundle(
   return out;
 }
 
+// Sprint 9-C slice-2 — same RendererArtifact shape as the lecture manifest.
+// Concept jobs that opt into Remotion via payload.useRemotion get a parallel
+// `explainer-remotion.mp4` artifact + a `renderers.remotion` block.
+export interface ConceptRendererArtifact {
+  path: string;
+  bytes: number;
+  render_time_ms?: number;
+  frames_rendered?: number;
+  fps?: number;
+  composition?: string;
+}
+
 export interface ConceptManifest {
   conceptId: string;
   topic: string;
@@ -95,7 +107,8 @@ export interface ConceptManifest {
   generatedAt: string;
   storagePrefix: string;
   signedUrls: {
-    explainer: string;
+    explainer: string;                 // canonical ffmpeg explainer.mp4
+    explainerRemotion?: string;        // optional Remotion explainer-remotion.mp4
     notesJson: string;
     notesPdf: string;
     quiz: string;
@@ -106,6 +119,10 @@ export interface ConceptManifest {
     narrationMp3?: string;
     subtitles?: string;
   };
+  renderers: {
+    ffmpeg: ConceptRendererArtifact;
+    remotion?: ConceptRendererArtifact;
+  };
   expiresAt: string;
 }
 
@@ -115,9 +132,17 @@ export function buildConceptManifest(args: {
   durationSeconds: number;
   storagePrefix: string;
   uploads: Record<string, ConceptUploadResult>;
+  remotionMetrics?: {
+    render_time_ms: number;
+    frames_rendered: number;
+    fps: number;
+    composition?: string;
+  };
 }): ConceptManifest {
   const u = args.uploads;
   const pick = (k: string) => u[k]?.signedUrl;
+  const ffmpegEntry = u['explainer.mp4'];
+  const remotionEntry = u['explainer-remotion.mp4'];
   return {
     conceptId: args.conceptId,
     topic: args.topic,
@@ -126,6 +151,7 @@ export function buildConceptManifest(args: {
     storagePrefix: args.storagePrefix,
     signedUrls: {
       explainer:  pick('explainer.mp4')!,
+      ...(remotionEntry ? { explainerRemotion: pick('explainer-remotion.mp4')! } : {}),
       notesJson:  pick('notes.json')!,
       notesPdf:   pick('notes.pdf')!,
       quiz:       pick('quiz.json')!,
@@ -135,6 +161,24 @@ export function buildConceptManifest(args: {
       manifest:   pick('manifest.json')!,
       ...(pick('narration.mp3') ? { narrationMp3: pick('narration.mp3') } : {}),
       ...(pick('subtitles.srt') ? { subtitles:   pick('subtitles.srt') } : {}),
+    },
+    renderers: {
+      ffmpeg: {
+        path: ffmpegEntry?.storagePath || '',
+        bytes: ffmpegEntry?.bytes || 0,
+      },
+      ...(remotionEntry ? {
+        remotion: {
+          path: remotionEntry.storagePath,
+          bytes: remotionEntry.bytes,
+          ...(args.remotionMetrics ? {
+            render_time_ms: args.remotionMetrics.render_time_ms,
+            frames_rendered: args.remotionMetrics.frames_rendered,
+            fps: args.remotionMetrics.fps,
+            composition: args.remotionMetrics.composition || 'EducationalLecture',
+          } : {}),
+        },
+      } : {}),
     },
     expiresAt: Object.values(u)[0]?.expiresAt || new Date(Date.now() + 86_400_000).toISOString(),
   };

@@ -32,6 +32,10 @@ export interface GenerateLectureOpts {
   // instead of its hardcoded Ohm's Law plan. Shape must match the LecturePlan
   // interface inside scripts/verification/mvp-e2e-lecture.ts.
   planJson?: unknown;
+  // Sprint 9-C slice-2 — opt-in Remotion parallel render. When true, the
+  // child script also runs STAGE 9 (Remotion) and emits lecture-remotion.mp4
+  // alongside lecture.mp4. ffmpeg path stays canonical regardless.
+  useRemotion?: boolean;
   onStageProgress?: (e: StageProgressEvent) => void | Promise<void>;
 }
 
@@ -48,6 +52,8 @@ export interface GenerateLectureResult {
   wallSeconds: number;
   artifacts: {
     lectureMp4: string;
+    // Sprint 9-C slice-2 — present when useRemotion=true.
+    lectureRemotionMp4?: string;
     narrationMp3: string;
     subtitlesSrt: string;
     notesJson: string;
@@ -58,6 +64,13 @@ export interface GenerateLectureResult {
     boardOverlayMp4: string;
   };
   metadata: any;             // contents of metadata.json
+  // Convenience surfacing of metadata.renderers.remotion when present.
+  remotionMetrics?: {
+    render_time_ms: number;
+    frames_rendered: number;
+    fps: number;
+    composition: string;
+  };
 }
 
 // Maps the script's "STAGE: N <name>" banner to our public LectureStage enum.
@@ -110,6 +123,7 @@ export async function generateLecture(opts: GenerateLectureOpts): Promise<Genera
   const childArgs = [tsxCli, scriptPath];
   if (opts.fresh) childArgs.push('--fresh');
   if (opts.skipLtx) childArgs.push('--skip-ltx');
+  if (opts.useRemotion) childArgs.push('--remotion');
 
   // Sprint 9-B — write planJson to a temp file and forward via env. Inline
   // JSON would race the OS env-var size limit on Windows for large plans.
@@ -190,7 +204,7 @@ export async function generateLecture(opts: GenerateLectureOpts): Promise<Genera
 
   const wallSeconds = Math.round((Date.now() - t0) / 1000);
 
-  const artifacts = {
+  const artifacts: GenerateLectureResult['artifacts'] = {
     lectureMp4:        path.join(outputDir, 'lecture.mp4'),
     narrationMp3:      path.join(outputDir, 'intermediate', `${narrationSlug}-narration.mp3`),
     subtitlesSrt:      path.join(outputDir, 'intermediate', `${narrationSlug}-narration.srt`),
@@ -207,12 +221,33 @@ export async function generateLecture(opts: GenerateLectureOpts): Promise<Genera
   }
 
   for (const [k, p] of Object.entries(artifacts)) {
+    if (!p) continue;
     if (!existsSync(p)) throw new Error(`orchestrator missing artifact ${k} at ${p}`);
     if (statSync(p).size < 100) throw new Error(`orchestrator artifact ${k} too small at ${p}`);
   }
 
+  // Sprint 9-C slice-2 — pick up the optional Remotion artifact + metrics.
+  if (opts.useRemotion) {
+    const remotionPath = path.join(outputDir, 'lecture-remotion.mp4');
+    if (!existsSync(remotionPath)) {
+      throw new Error(`orchestrator: --remotion was set but ${remotionPath} is missing`);
+    }
+    if (statSync(remotionPath).size < 100 * 1024) {
+      throw new Error(`orchestrator: lecture-remotion.mp4 too small (<100 KB) at ${remotionPath}`);
+    }
+    artifacts.lectureRemotionMp4 = remotionPath;
+  }
+
   const metadata = JSON.parse(readFileSync(artifacts.metadataJson, 'utf8'));
   const durationSeconds: number = metadata?.video?.duration || 0;
+  const remotionMetrics = metadata?.renderers?.remotion
+    ? {
+        render_time_ms: metadata.renderers.remotion.render_time_ms,
+        frames_rendered: metadata.renderers.remotion.frames_rendered,
+        fps: metadata.renderers.remotion.fps,
+        composition: metadata.renderers.remotion.composition || 'EducationalLecture',
+      }
+    : undefined;
 
-  return { outputDir, durationSeconds, wallSeconds, artifacts, metadata };
+  return { outputDir, durationSeconds, wallSeconds, artifacts, metadata, remotionMetrics };
 }

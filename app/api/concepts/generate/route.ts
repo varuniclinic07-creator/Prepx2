@@ -21,6 +21,8 @@ const OPTIONS_SCHEMA = z.object({
   durationSeconds: z.number().int().min(60).max(120).optional(),
   outputFormat: z.literal('mp4-1280x720').optional(),
   skipLtx: z.boolean().optional(),
+  // Sprint 9-C slice-2 — opt-in Remotion parallel render.
+  useRemotion: z.boolean().optional(),
 });
 
 const TEXT_BODY_SCHEMA = OPTIONS_SCHEMA.extend({
@@ -111,6 +113,7 @@ export async function POST(req: NextRequest) {
       durationSeconds: parsed.data.durationSeconds,
       outputFormat: parsed.data.outputFormat,
       skipLtx: parsed.data.skipLtx,
+      useRemotion: parsed.data.useRemotion,
     };
   }
 
@@ -150,6 +153,7 @@ export async function POST(req: NextRequest) {
       durationSeconds: options.durationSeconds,
       outputFormat: options.outputFormat,
       skipLtx: options.skipLtx,
+      useRemotion: options.useRemotion,
     } satisfies Omit<ConceptGenerateJobPayload, 'taskId'>,
     priority: 4,
   });

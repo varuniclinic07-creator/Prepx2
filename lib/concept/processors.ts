@@ -222,6 +222,7 @@ export async function processConceptGenerateJob(
     outputDir: conceptOutputDir,
     planJson: plan,
     skipLtx: data.skipLtx,
+    useRemotion: data.useRemotion,
     onStageProgress: async (e) => {
       // Sprint 9-C Phase B — forward LectureStage events into concept_jobs.stage_log
       // so concept jobs no longer sit at 85% through the entire bake.
@@ -297,6 +298,14 @@ export async function processConceptGenerateJob(
     { filePath: lectureResult.artifacts.narrationMp3,  storageName: 'narration.mp3',  contentType: 'audio/mpeg' },
     { filePath: lectureResult.artifacts.subtitlesSrt,  storageName: 'subtitles.srt',  contentType: 'application/x-subrip' },
   ];
+  // Sprint 9-C slice-2 — opt-in Remotion parallel artifact for concepts.
+  if (lectureResult.artifacts.lectureRemotionMp4) {
+    uploads.push({
+      filePath: lectureResult.artifacts.lectureRemotionMp4,
+      storageName: 'explainer-remotion.mp4',
+      contentType: 'video/mp4',
+    });
+  }
   const uploaded = await uploadConceptBundle(userId, conceptId, uploads);
 
   // Build + upload manifest.
@@ -306,6 +315,7 @@ export async function processConceptGenerateJob(
     durationSeconds: lectureResult.durationSeconds,
     storagePrefix,
     uploads: { ...uploaded, 'manifest.json': { storagePath: '', signedUrl: '', expiresAt: '', bytes: 0 } },
+    remotionMetrics: lectureResult.remotionMetrics,
   });
   const manifestLocal = path.join(conceptOutputDir, 'manifest.json');
   writeFileSync(manifestLocal, JSON.stringify(manifestStub, null, 2), 'utf8');
@@ -319,6 +329,7 @@ export async function processConceptGenerateJob(
     durationSeconds: lectureResult.durationSeconds,
     storagePrefix,
     uploads: uploaded,
+    remotionMetrics: lectureResult.remotionMetrics,
   });
 
   await sb.from('concept_jobs').update({

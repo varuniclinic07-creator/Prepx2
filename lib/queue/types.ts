@@ -147,6 +147,9 @@ export interface LectureGenerateJobPayload {
   // this plan instead. Used by Sprint 9-B (Product B) to feed simplified
   // teacher-style scenes derived from a parsed PDF/image/DOCX.
   planJson?: unknown;
+  // Sprint 9-C slice-2 — opt-in Remotion parallel render. ffmpeg lecture.mp4
+  // always produced; lecture-remotion.mp4 only when this is true.
+  useRemotion?: boolean;
 }
 
 // Sprint 9-B — Product B "Explain This" / AI Doubt Solver. Wraps a parsed
@@ -178,6 +181,9 @@ export interface ConceptGenerateJobPayload {
   durationSeconds?: number;       // 60-120, default 90
   outputFormat?: 'mp4-1280x720';
   skipLtx?: boolean;
+  // Sprint 9-C slice-2 — opt-in Remotion parallel render. Adds
+  // explainer-remotion.mp4 alongside explainer.mp4 in the bundle.
+  useRemotion?: boolean;
 }
 
 export type QueueName =

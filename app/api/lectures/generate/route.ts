@@ -12,6 +12,8 @@ const BodySchema = z.object({
   language: z.enum(['en', 'hi', 'hinglish']).optional(),
   outputFormat: z.literal('mp4-1280x720').optional(),
   skipLtx: z.boolean().optional(),
+  // Sprint 9-C slice-2 — opt-in Remotion parallel render.
+  useRemotion: z.boolean().optional(),
 });
 
 export async function POST(req: NextRequest) {
@@ -63,6 +65,7 @@ export async function POST(req: NextRequest) {
       language: parsed.data.language,
       outputFormat: parsed.data.outputFormat,
       skipLtx: parsed.data.skipLtx,
+      useRemotion: parsed.data.useRemotion,
     },
     priority: 4,
   });
